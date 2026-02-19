@@ -4,6 +4,25 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 
 **Source of truth:** Commands are derived from the frontend `dataService.ts` and `aiService.ts` API surface. Every async function the frontend calls will become an IPC command when the Tauri backend is wired.
 
+## Naming Convention Reconciliation
+
+> **Note (ADR-0006, ADR-0007):** The command names below use dot-notation with domain-specific namespaces (e.g., `tasks.create`, `journal.list`). Per ADR-0006, the production backend uses the EAV/Page model where all entities are pages. The target-state IPC surface uses **snake_case page-centric commands** as defined in `001_architecture.md` Section 6.2 (e.g., `vault_create_page`, `collection_query`, `page_update_props`).
+>
+> The domain-specific commands below are **Phase 0 bridge commands** — they document the frontend's current `dataService.ts` API surface and will be mapped to page-centric commands during Phase 1 IPC wiring:
+>
+> | Bridge Command | Target Command | Notes |
+> |---|---|---|
+> | `tasks.create` | `vault_create_page(kind: "task", ...)` | Properties normalized to EAV |
+> | `tasks.list` | `collection_query(collection_id: "col_tasks", ...)` | Filters via EAV properties |
+> | `tasks.update` | `page_update_props(page_id, props)` | Property updates via EAV |
+> | `tasks.delete` | `vault_delete(page_id)` | Removes .md file + index |
+> | `schedule.getToday` | `collection_query(collection_id: "col_calendar", filters: [start = today])` | Per ADR-0007, ScheduleItem is eliminated |
+> | `schedule.addTask` | `vault_create_page(kind: "event", type: "task", ...)` | Per ADR-0007 |
+>
+> The same mapping applies to all other domain commands (projects, journal, habits, goals, meals, workouts, travel, finance). See `docs/CONVENTIONS.md` for the canonical naming convention.
+
+---
+
 ## Command Matrix
 
 ### Tasks
