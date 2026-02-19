@@ -166,19 +166,21 @@ Embedding provider options:
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `capture.save` | Save quick capture | `text` | `void` | TodayDashboard capture widget | `CaptureService::save` |
 
-### AI (Phase 4 — currently frontend-direct)
+### AI (Phase 4 — backend IPC foundation)
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `ai.getSettings` | Get AI config | — | `AISettings` | Settings page | `AIService::get_settings` |
-| `ai.setSettings` | Update AI config | Partial `AISettings` fields | `AISettings` | Settings page | `AIService::update_settings` |
-| `ai.getModels` | List available models | — | `AIModel[]` | Settings, RightDrawer model picker | `AIService::list_models` |
-| `ai.chat` | Send chat message | `model_id?`, `history`, `message`, `enable_agent?` | `ChatResponse { text, tool_results? }` | RightDrawer AI panel | `AIService::chat` |
-| `ai.summarize` | Summarize a note | `note_id` | `string` | RightDrawer note summary | `AIService::summarize` |
-| `ai.generateImage` | Generate image | `prompt` | `string` (base64 data URI) | ProjectDetail artifacts | `AIService::generate_image` |
-| `ai.transcribe` | Transcribe audio | `audio_base64` | `string` (transcribed text) | RightDrawer voice input | `AIService::transcribe` |
-| `ai.generateSpeech` | Text to speech | `text`, `voice?` | `string` (base64 audio) | RightDrawer auto-speak | `AIService::generate_speech` |
-| `ai.validateKey` | Validate API key | `provider`, `key` | `boolean` | Settings key validation | `AIService::validate_key` |
+| `ai_get_models` | List available models | — | `AIModel[]` | Settings model picker, RightDrawer model selector | `ai_get_models` |
+| `ai_chat` | Send chat message and emit stream events | `request: { history, message, model_id?, enable_agent? }` | `ChatResponse { text, tool_results[], request_id }` | RightDrawer AI panel | `ai_chat` |
+| `ai_summarize` | Summarize note content | `request: { title, body }` | `string` | Note summary panel | `ai_summarize` |
+| `ai_generate_image` | Generate image artifact | `request: { prompt }` | `string` (data URI) | Project artifact generation | `ai_generate_image` |
+| `ai_transcribe` | Transcribe audio | `request: { audio_base64 }` | `string` | Voice input transcription | `ai_transcribe` |
+| `ai_synthesize` | Text to speech | `request: { text, voice? }` | `string` (base64 WAV) | Chat auto-speak | `ai_synthesize` |
+| `ai_validate_key` | Validate provider credential/endpoint format | `request: { provider, key }` | `boolean` | Settings provider verification | `ai_validate_key` |
+| `review_list` | List Morning Review items | `status?` (`pending|approved|rejected`) | `ReviewQueueItem[]` | Morning Review UI | `review_list` |
+| `review_approve` | Approve review item | `item_id`, `edited_json?` | `boolean` | Morning Review UI | `review_approve` |
+| `review_reject` | Reject review item | `item_id` | `boolean` | Morning Review UI | `review_reject` |
+| `token_usage` | Query token/cost usage rollups | `days?` | `TokenUsageEntry[]` | Settings usage dashboard | `token_usage` |
 
 ## Event Streams
 
@@ -189,6 +191,9 @@ Realtime frontend invalidation for Phase 3 uses Tauri event channels in addition
 | `page_created` | A page/entity was created | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-creation handlers (`vault_create_page`, `capture_save`, etc.) |
 | `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-update handlers (`page_update_props`, `page_update_body`, `habits_toggle`) |
 | `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | `vault_delete` |
+| `ai_stream_chunk` | Streamed AI text chunk | `requestId`, `text` | `services/aiService.ts` streaming updates in RightDrawer | `ai_chat` |
+| `ai_stream_done` | Stream completion metadata | `requestId`, `inputTokens`, `outputTokens`, `estimatedCostUsd` | `services/aiService.ts` completion handling | `ai_chat` |
+| `ai_stream_error` | Stream failure notification | `requestId`, `error` | `services/aiService.ts` error fallback | Future provider stream handlers |
 
 ## Error Response Convention
 
