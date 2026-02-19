@@ -57,8 +57,9 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `travel.listTrips` | List all trips | — | `Trip[]` | Travel gallery | `TravelService::list` |
-| `travel.createTrip` | Create a trip folder | `destination` | `Trip` | Travel "New Trip" | `TravelService::create_trip` |
-| `travel.createCard` | Add card to trip | `trip_path`, `title` | `Note` | Travel detail "Add Card" | `TravelService::create_card` |
+| `travel.createTrip` | Create a trip folder | `title`, `destination`, `start_date`, `end_date` | `Trip` | Travel "New Trip" | `travel_create_trip` |
+| `travel.createCard` | Add card to trip | `trip_id`, `kind`, `title`, `props?` | `Note` | Travel detail "Add Card" | `travel_create_card` |
+| `travel.getItinerary` | Get trip + child cards | `trip_id` | `{ trip, cards[] }` | Travel itinerary detail | `travel_get_itinerary` |
 
 ### Finance
 
@@ -67,8 +68,9 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | `finance.getAccounts` | List manual accounts | — | `ManualAccount[]` | Finance Accounts tab | `FinanceService::get_accounts` |
 | `finance.addAccount` | Add manual account | `name`, `type`, `balance` | `ManualAccount` | Finance "Add Account" | `FinanceService::add_account` |
 | `finance.getBudget` | Get budget months | `month?` | `YNABBudgetMonth[]` | Finance Budget tab (Recharts) | `FinanceService::get_budget` |
+| `finance.getSummary` | Get month rollup | `month?` | `FinanceSummary` | Finance drill-down metrics | `finance_get_summary` |
 | `finance.listTransactions` | List transactions | `month?` | `Transaction[]` | Finance Transactions tab | `FinanceService::list_transactions` |
-| `finance.importCsv` | Import CSV file | `filename`, `content` | `void` | Finance Import tab | `FinanceService::import_csv` |
+| `finance.importCsv` | Import CSV file | `filename`, `content` **or** `account_id`, `rows[]` | `Transaction[]` | Finance Import tab | `finance_import_csv` |
 
 ### Journal
 
@@ -76,6 +78,8 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `journal.create` | Add journal entry | `date?`, `content`, `mood?`, `tags?` | `JournalEntry` | Journal view | `JournalService::create` |
 | `journal.list` | List entries | `date_range?`, `mood?`, `tag?` | `JournalEntry[]` | Journal view | `JournalService::list` |
+| `journal.query` | Filter entries by date/mood | `start_date?`, `end_date?`, `mood?` | `JournalEntry[]` | Journal timeline filtering | `journal_query` |
+| `journal.moodTrends` | Aggregate mood counts | `start_date?`, `end_date?` | `{ mood, count }[]` | Journal mood chart | `journal_mood_trends` |
 
 ### Habits
 
@@ -83,7 +87,8 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `habits.list` | List all habits | — | `Habit[]` | Habits view, TodayDashboard | `HabitService::list` |
 | `habits.create` | Create a habit | `title`, `frequency?` | `Habit` | Habits "Add Habit" | `HabitService::create` |
-| `habits.toggle` | Toggle completion | `id`, `date` | `Habit` | Habits daily check, TodayDashboard | `HabitService::toggle_completion` |
+| `habits.toggle` | Toggle completion | `page_id`, `date` | `Habit` | Habits daily check, TodayDashboard | `habits_toggle` |
+| `habits.getSummary` | Habit analytics | `days?` | `HabitSummary[]` | Habits analytics panel | `habits_get_summary` |
 
 ### Goals
 
@@ -92,6 +97,7 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | `goals.list` | List goals | `status?`, `project_id?` | `Goal[]` | Goals view | `GoalService::list` |
 | `goals.create` | Create a goal | `title`, `description?`, `type`, `target_date`, `project_id?` | `Goal` | Goals "Add Goal", AI agent `addGoal` | `GoalService::create` |
 | `goals.update` | Update a goal | `id`, updatable fields | `Goal` | Goals progress slider | `GoalService::update` |
+| `goals.getProgressSummary` | Goal rollup metrics | `project_id?` | `GoalProgressSummary` | Goals dashboard chart | `goals_get_progress_summary` |
 
 ### Meals / Recipes
 
@@ -101,6 +107,7 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | `meals.create` | Log a meal | `date`, `type` (enum: `BREAKFAST\|LUNCH\|DINNER\|SNACK`), `description`, `recipe_id?`, `calories?` | `Meal` | Meals weekly planner slot | `MealService::create` |
 | `meals.update` | Update a meal | `id`, updatable Meal fields | `Meal` | Meals weekly planner | `MealService::update` |
 | `meals.delete` | Remove a meal | `id` | `void` | Meals planner slot replace | `MealService::delete` |
+| `meals.getNutritionSummary` | Date-window nutrition rollup | `start_date?`, `end_date?` | `MealsNutritionSummary` | Meals analytics cards | `meals_get_nutrition_summary` |
 | `recipes.list` | List recipes | `tags?` | `Recipe[]` | Meals recipe library | `RecipeService::list` |
 | `recipes.create` | Create a recipe | `title`, `ingredients`, `instructions`, `calories?`, `tags?`, `image_url?` | `Recipe` | Meals recipe form | `RecipeService::create` |
 | `recipes.update` | Update a recipe | `id`, updatable Recipe fields incl. `image_url` | `Recipe` | Meals recipe card (image upload) | `RecipeService::update` |
@@ -136,6 +143,22 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `search.global` | Search all content | `query`, `limit?` | `SearchResult[]` | CommandPalette, AI agent `searchBrain` | `SearchService::global` |
+| `search.semantic` | Vector-only semantic search | `query`, `limit?` | `SearchResult[]` | Future semantic tab / agent tools | `search_semantic` |
+| `search.graphNeighbors` | Traverse related pages by link distance | `page_id`, `depth?`, `limit?` | `SearchResult[]` | CommandPalette related graph badges | `search_graph_neighbors` |
+| `search.graphSuggestLinks` | Suggest unlinked related pages | `page_id`, `limit?` | `SearchResult[]` | Link suggestion workflows (Phase 4 prep) | `search_graph_suggest_links` |
+
+## Phase 3 Page-Centric Notes
+
+Search commands are powered by:
+
+- FTS5 lexical ranking (`pages_fts`)
+- sqlite-vec chunk vectors (`search_chunk_vec`)
+- bidirectional wikilink graph edges (`graph_edges`)
+
+Embedding provider options:
+
+- hash embeddings (default deterministic fallback)
+- Ollama embeddings (`CORTEX_SEARCH_EMBED_PROVIDER=ollama`, optional local runtime)
 
 ### Quick Capture
 
@@ -156,6 +179,16 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | `ai.transcribe` | Transcribe audio | `audio_base64` | `string` (transcribed text) | RightDrawer voice input | `AIService::transcribe` |
 | `ai.generateSpeech` | Text to speech | `text`, `voice?` | `string` (base64 audio) | RightDrawer auto-speak | `AIService::generate_speech` |
 | `ai.validateKey` | Validate API key | `provider`, `key` | `boolean` | Settings key validation | `AIService::validate_key` |
+
+## Event Streams
+
+Realtime frontend invalidation for Phase 3 uses Tauri event channels in addition to request/response commands.
+
+| Event | Description | Payload fields | Frontend usage | Backend emitter |
+|-------|-------------|----------------|----------------|-----------------|
+| `page_created` | A page/entity was created | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-creation handlers (`vault_create_page`, `capture_save`, etc.) |
+| `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-update handlers (`page_update_props`, `page_update_body`, `habits_toggle`) |
+| `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | `vault_delete` |
 
 ## Error Response Convention
 
