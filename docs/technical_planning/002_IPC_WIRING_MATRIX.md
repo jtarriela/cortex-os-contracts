@@ -31,7 +31,7 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `TaskService::create` |
 | `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `TaskService::list` |
-| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard | `TaskService::update` |
+| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard | `TaskService::update` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `TaskService::delete` |
 
 ### Projects
@@ -120,8 +120,16 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | `calendar.getToday` | Get today's schedule events | — | `CalendarEvent[]` | TodayDashboard timeline | `CalendarService::get_today` |
 | `calendar.getWeek` | Get week events | `start_date?` | `CalendarEvent[]` | WeekDashboard | `CalendarService::get_week` |
 | `calendar.addEvent` | Create event | `title`, `start` (ISO datetime), `end` (ISO datetime), `type` (enum: `event\|task\|reminder\|deep-work`), `color?`, `description?`, `location?`, `linked_note_id?`, `task_id?` | `CalendarEvent` | TodayDashboard schedule, WeekDashboard click-to-add | `CalendarService::add_event` |
-| `calendar.updateEvent` | Update event | `id`, updatable fields | `CalendarEvent` | WeekDashboard drag | `CalendarService::update_event` |
+| `calendar.updateEvent` | Update event | `id`, updatable fields incl. `sync_external?` (boolean) | `CalendarEvent` | WeekDashboard drag | `CalendarService::update_event` |
 | `calendar.deleteEvent` | Delete event | `id` | `void` | WeekDashboard right-click | `CalendarService::delete_event` |
+
+### Integrations (Google Calendar)
+
+| Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
+|---------|-------------|----------------|----------------|----------------|----------------|
+| `integrations.googleAuth` | Authenticate with Google | — | `string` (auth URL) | Settings Integrations | `GoogleService::authenticate` |
+| `integrations.googleCalendars` | List available calendars | — | `string[]` | Settings Integrations | `GoogleService::get_calendars` |
+| `integrations.triggerSync` | Trigger two-way sync manually | — | `boolean` | Settings Integrations | `GoogleService::trigger_sync` |
 
 ### Search
 
