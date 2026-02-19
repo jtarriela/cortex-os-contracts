@@ -16,8 +16,8 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 > | `tasks.list` | `collection_query(collection_id: "col_tasks", ...)` | Filters via EAV properties |
 > | `tasks.update` | `page_update_props(page_id, props)` | Property updates via EAV |
 > | `tasks.delete` | `vault_delete(page_id)` | Removes .md file + index |
-> | `schedule.getToday` | `collection_query(collection_id: "col_calendar", filters: [start = today])` | Per ADR-0007, ScheduleItem is eliminated |
-> | `schedule.addTask` | `vault_create_page(kind: "event", type: "task", ...)` | Per ADR-0007 |
+> | ~~`schedule.getToday`~~ | `calendar.getToday` | **Removed** — ScheduleItem eliminated per ADR-0007; use `calendar.getToday` |
+> | ~~`schedule.addTask`~~ | `calendar.addEvent(type: "task")` | **Removed** — replaced by `calendar.addEvent` per ADR-0007 |
 >
 > The same mapping applies to all other domain commands (projects, journal, habits, goals, meals, workouts, travel, finance). See `docs/CONVENTIONS.md` for the canonical naming convention.
 
@@ -29,9 +29,9 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `TaskService::create` |
-| `tasks.list` | List tasks with filters | `status?` (enum), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `TaskService::list` |
-| `tasks.update` | Update a task | `id`, any updatable Task fields | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard | `TaskService::update` |
+| `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `TaskService::create` |
+| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `TaskService::list` |
+| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard | `TaskService::update` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `TaskService::delete` |
 
 ### Projects
@@ -98,9 +98,13 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `meals.list` | List meals | `date_range?` | `Meal[]` | Meals view | `MealService::list` |
-| `meals.create` | Log a meal | `date`, `type`, `description`, `recipe_id?`, `calories?` | `Meal` | Meals view | `MealService::create` |
+| `meals.create` | Log a meal | `date`, `type` (enum: `BREAKFAST\|LUNCH\|DINNER\|SNACK`), `description`, `recipe_id?`, `calories?` | `Meal` | Meals weekly planner slot | `MealService::create` |
+| `meals.update` | Update a meal | `id`, updatable Meal fields | `Meal` | Meals weekly planner | `MealService::update` |
+| `meals.delete` | Remove a meal | `id` | `void` | Meals planner slot replace | `MealService::delete` |
 | `recipes.list` | List recipes | `tags?` | `Recipe[]` | Meals recipe library | `RecipeService::list` |
 | `recipes.create` | Create a recipe | `title`, `ingredients`, `instructions`, `calories?`, `tags?`, `image_url?` | `Recipe` | Meals recipe form | `RecipeService::create` |
+| `recipes.update` | Update a recipe | `id`, updatable Recipe fields incl. `image_url` | `Recipe` | Meals recipe card (image upload) | `RecipeService::update` |
+| `recipes.delete` | Delete a recipe | `id` | `void` | Meals recipe card (planned) | `RecipeService::delete` |
 
 ### Workouts
 
@@ -113,12 +117,11 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
+| `calendar.getToday` | Get today's schedule events | — | `CalendarEvent[]` | TodayDashboard timeline | `CalendarService::get_today` |
 | `calendar.getWeek` | Get week events | `start_date?` | `CalendarEvent[]` | WeekDashboard | `CalendarService::get_week` |
-| `calendar.addEvent` | Create event | `title`, `start`, `end`, `type`, `color?`, `description?`, `location?`, `linked_note_id?`, `task_id?` | `CalendarEvent` | WeekDashboard click-to-add | `CalendarService::add_event` |
+| `calendar.addEvent` | Create event | `title`, `start` (ISO datetime), `end` (ISO datetime), `type` (enum: `event\|task\|reminder\|deep-work`), `color?`, `description?`, `location?`, `linked_note_id?`, `task_id?` | `CalendarEvent` | TodayDashboard schedule, WeekDashboard click-to-add | `CalendarService::add_event` |
 | `calendar.updateEvent` | Update event | `id`, updatable fields | `CalendarEvent` | WeekDashboard drag | `CalendarService::update_event` |
 | `calendar.deleteEvent` | Delete event | `id` | `void` | WeekDashboard right-click | `CalendarService::delete_event` |
-| `schedule.getToday` | Get today's schedule | — | `ScheduleItem[]` | TodayDashboard timeline | `ScheduleService::get_today` |
-| `schedule.addTask` | Add task to schedule | `task_id`, `start_time`, `duration_minutes` | `ScheduleItem` | TodayDashboard | `ScheduleService::add_task` |
 
 ### Search
 
@@ -145,6 +148,46 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | `ai.transcribe` | Transcribe audio | `audio_base64` | `string` (transcribed text) | RightDrawer voice input | `AIService::transcribe` |
 | `ai.generateSpeech` | Text to speech | `text`, `voice?` | `string` (base64 audio) | RightDrawer auto-speak | `AIService::generate_speech` |
 | `ai.validateKey` | Validate API key | `provider`, `key` | `boolean` | Settings key validation | `AIService::validate_key` |
+
+## Error Response Convention
+
+All IPC commands return a tagged Result type. On error the response is a JSON object with `error` key:
+
+```json
+{ "error": { "code": "NOT_FOUND", "message": "Task id=abc not found" } }
+```
+
+Standard error codes:
+
+| Code | HTTP analogue | When to use |
+|------|--------------|-------------|
+| `NOT_FOUND` | 404 | Requested resource does not exist |
+| `INVALID_INPUT` | 400 | Required field missing or value out of range |
+| `CONFLICT` | 409 | Duplicate ID or concurrent write conflict |
+| `UNAUTHORIZED` | 401 | DB key rejected (wrong passphrase) |
+| `INTERNAL` | 500 | Unexpected Rust panic / SQLite error |
+
+**Example — `tasks.create` with missing required field:**
+
+```json
+// Request
+{ "title": "" }
+
+// Response (error)
+{ "error": { "code": "INVALID_INPUT", "message": "title must not be empty" } }
+```
+
+**Example — `tasks.update` with unknown id:**
+
+```json
+// Request
+{ "id": "task-does-not-exist", "status": "DONE" }
+
+// Response (error)
+{ "error": { "code": "NOT_FOUND", "message": "Task id=task-does-not-exist not found" } }
+```
+
+---
 
 ## How to use this matrix
 
