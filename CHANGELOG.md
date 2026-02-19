@@ -5,6 +5,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.4.0] — 2026-02-19
+
+### Added
+- Vault onboarding commands:
+  - `vault_get_profile`
+  - `vault_create`
+  - `vault_select`
+- Secret storage contract surface:
+  - `secret_set`
+  - `secret_get`
+  - `secret_delete`
+- Save-commit/indexing contracts:
+  - `save_commit`
+  - `index_queue_status`
+- RAG command contracts:
+  - `ai_rag_query`
+  - `ai_suggest_links`
+- AI stream error payload is now implemented and emitted by backend provider adapters (`ai_stream_error`).
+
+### Changed
+- `settings_get` / `settings_update` now use masked secret placeholders; plaintext keys are never returned over IPC.
+- AI model capabilities (`text|image|audio|live`) are backend-driven and intended to gate frontend toggles.
+
+### Migration Notes (FE/BE)
+- Frontend should route note persistence through `save_commit` to get deterministic save-ACK indexing semantics.
+- Frontend should treat `********` as a secret placeholder and avoid re-submitting unchanged key values.
+- Backend should persist provider credentials via `secret_*` commands/storage and keep `ai_settings` key fields masked.
+
 ## [Unreleased] — Phase 0.5
 
 ### Added

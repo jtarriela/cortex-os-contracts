@@ -51,6 +51,11 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | `vault.getFileContent` | Get note content | `id` | `Note` | NotesLibrary note viewer, RightDrawer | `VaultService::get_file_content` |
 | `notes.create` | Create a note | `title`, `content`, `path`, `tags?` | `Note` | NotesLibrary | `NoteService::create` |
 | `notes.update` | Update a note | `id`, `title?`, `content?`, `tags?` | `Note` | NotesLibrary | `NoteService::update` |
+| `vault_get_profile` | Read active vault onboarding profile | — | `VaultProfile \| null` | App bootstrap gate | `vault_get_profile` |
+| `vault_create` | Create/activate vault profile + starter structure | `request: { root_path, name? }` | `VaultProfile` | Vault Setup splash | `vault_create` |
+| `vault_select` | Validate/select an existing vault profile | `request: { root_path }` | `VaultProfile` | Vault Setup splash | `vault_select` |
+| `save_commit` | Persist note body and enqueue post-commit indexing | `request: { page_id, body }` | `Page` | Notes editor autosave/flush | `save_commit` |
+| `index_queue_status` | Read indexing queue state for diagnostics/progress | `limit?` | `IndexQueueJob[]` | Debug/progress UI | `index_queue_status` |
 
 ### Travel
 
@@ -177,10 +182,20 @@ Embedding provider options:
 | `ai_transcribe` | Transcribe audio | `request: { audio_base64 }` | `string` | Voice input transcription | `ai_transcribe` |
 | `ai_synthesize` | Text to speech | `request: { text, voice? }` | `string` (base64 WAV) | Chat auto-speak | `ai_synthesize` |
 | `ai_validate_key` | Validate provider credential/endpoint format | `request: { provider, key }` | `boolean` | Settings provider verification | `ai_validate_key` |
+| `ai_rag_query` | Retrieval-augmented query over vault/search index | `request: { query, limit? }` | `AIRagResult { request_id, answer, context[] }` | AI assistant context mode | `ai_rag_query` |
+| `ai_suggest_links` | Suggest related pages from embeddings+graph | `request: { page_id, limit? }` | `Page[]` | Note linking workflows | `ai_suggest_links` |
 | `review_list` | List Morning Review items | `status?` (`pending|approved|rejected`) | `ReviewQueueItem[]` | Morning Review UI | `review_list` |
 | `review_approve` | Approve review item | `item_id`, `edited_json?` | `boolean` | Morning Review UI | `review_approve` |
 | `review_reject` | Reject review item | `item_id` | `boolean` | Morning Review UI | `review_reject` |
 | `token_usage` | Query token/cost usage rollups | `days?` | `TokenUsageEntry[]` | Settings usage dashboard | `token_usage` |
+
+### Secret Storage (Phase 4)
+
+| Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
+|---------|-------------|----------------|----------------|----------------|----------------|
+| `secret_set` | Store encrypted secret envelope | `request: { secret_key, plaintext }` | `boolean` | Secure key rotation flows | `secret_set` |
+| `secret_get` | Retrieve decrypted secret value | `secret_key` | `string \| null` | Secure settings bootstrap | `secret_get` |
+| `secret_delete` | Remove encrypted secret | `secret_key` | `boolean` | Credential revoke flows | `secret_delete` |
 
 ## Event Streams
 
@@ -193,7 +208,7 @@ Realtime frontend invalidation for Phase 3 uses Tauri event channels in addition
 | `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | `vault_delete` |
 | `ai_stream_chunk` | Streamed AI text chunk | `requestId`, `text` | `services/aiService.ts` streaming updates in RightDrawer | `ai_chat` |
 | `ai_stream_done` | Stream completion metadata | `requestId`, `inputTokens`, `outputTokens`, `estimatedCostUsd` | `services/aiService.ts` completion handling | `ai_chat` |
-| `ai_stream_error` | Stream failure notification | `requestId`, `error` | `services/aiService.ts` error fallback | Future provider stream handlers |
+| `ai_stream_error` | Stream failure notification | `requestId`, `error`, `provider`, `code` | `services/aiService.ts` error/retry UX | `ai_chat` provider adapter failure path |
 
 ## Error Response Convention
 

@@ -19,7 +19,7 @@ MAJOR.MINOR.PATCH
 | MINOR | New commands added, new optional fields added to existing commands |
 | PATCH | Documentation fixes, typo corrections, no contract changes |
 
-**Current version:** `0.1.0` (pre-release, all changes are considered non-breaking until 1.0)
+**Current version:** `0.4.0` (pre-release, all changes are considered non-breaking until 1.0)
 
 ---
 
@@ -95,7 +95,7 @@ Per `CONTRIBUTING.md` and `.system/PROTOCOL.md`:
 
 ## 6) Changelog
 
-All contract changes are documented in `CHANGELOG.md` (to be created when the first contract artifacts are generated). Each entry includes:
+All contract changes are documented in `CHANGELOG.md`. Each entry includes:
 
 - Version number
 - Date

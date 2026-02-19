@@ -162,3 +162,32 @@ listen("ai_stream_error", { request_id, error: ErrorResponse })
 ```
 
 The frontend receives a `request_id` immediately and listens for events. This avoids blocking the IPC channel during long-running AI operations.
+
+---
+
+## 9) Secret Field Conventions (Phase 4)
+
+Secrets are never returned in plaintext over IPC.
+
+- `settings_get` returns masked placeholders (`"********"`) when a secret exists.
+- `settings_update` accepts new plaintext secrets for rotation, but should treat unchanged placeholders as no-op.
+- Dedicated secret transport commands:
+  - `secret_set(request: { secret_key, plaintext }) -> boolean`
+  - `secret_get(secret_key) -> string | null`
+  - `secret_delete(secret_key) -> boolean`
+
+Transport rule: clients must avoid writing raw secret values to logs and analytics payloads.
+
+---
+
+## 10) Save-Commit + Indexing Semantics (Phase 4)
+
+Persistence and indexing are explicitly commit-driven.
+
+- `save_commit(request: { page_id, body }) -> Page`
+  - returns only after durable write ACK
+  - enqueues indexing only after persistence
+- `index_queue_status(limit?) -> IndexQueueJob[]`
+  - observable queue surface for UI progress/debugging
+- unchanged content hash should create `skipped` status with reason `unchanged_hash`
+- rapid consecutive saves should coalesce queued jobs by `page_id`
