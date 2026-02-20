@@ -27,7 +27,7 @@ Top-level command arguments passed from frontend `invoke()` use **camelCase** ke
 
 - `collection_query(collection_id: String)` → `invoke('collection_query', { collectionId })`
 - `calendar_get_week(start_date: Option<String>)` → `invoke('calendar_get_week', { startDate })`
-- `travel_create_trip(start_date, end_date)` → `invoke('travel_create_trip', { startDate, endDate })`
+- `travel_create_trip(start_date, end_date, budget?)` → `invoke('travel_create_trip', { startDate, endDate, budget })`
 - `habits_toggle(page_id)` → `invoke('habits_toggle', { pageId })`
 
 Nested `request` payloads keep their documented serde field names (snake_case).
@@ -82,7 +82,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `travel.listTrips` | List all trips | — | `Trip[]` | Travel gallery | `TravelService::list` |
-| `travel.createTrip` | Create a trip folder and overview note | `title`, `destination`, `startDate`, `endDate` | `Trip` | Travel "New Trip" | `travel_create_trip` (`Travel/Trips/<slug>/Overview.md`, status normalized to `Planning`) |
+| `travel.createTrip` | Create a trip folder and overview note | `title`, `destination`, `startDate`, `endDate`, `budget?` | `Trip` | Travel "New Trip" splash modal (destination + dates + duration + optional budget) | `travel_create_trip` (`Travel/Trips/<slug>/Overview.md`, status normalized to `Planning`) |
 | `travel.createCard` | Add card markdown note to trip | `tripId`, `kind`, `title`, `props?` | `Note` | Travel detail "Add Card" | `travel_create_card` (`Travel/Trips/<slug>/<card-title-slug>.md` with collision suffixing) |
 | `travel.getItinerary` | Get trip + child cards | `tripId` | `{ trip, cards[] }` | Travel itinerary detail | `travel_get_itinerary` |
 

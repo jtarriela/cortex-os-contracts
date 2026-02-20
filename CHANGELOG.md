@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.4] — 2026-02-20
+
+### Changed
+- Travel command contract now documents optional trip budget metadata:
+  - `travel.createTrip` request includes `budget?` in addition to `title`, `destination`, `startDate`, and `endDate`.
+  - Tauri argument-casing notes now include the optional `budget` key in the `travel_create_trip` invoke example.
+
 ## [0.5.3] — 2026-02-20
 
 ### Changed
