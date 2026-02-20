@@ -179,8 +179,8 @@ Embedding provider options:
 | `ai_chat` | Send chat message and emit stream events | `request: { history, message, model_id?, enable_agent? }` | `ChatResponse { text, tool_results[], request_id }` | RightDrawer AI panel | `ai_chat` |
 | `ai_summarize` | Summarize note content | `request: { title, body }` | `string` | Note summary panel | `ai_summarize` |
 | `ai_generate_image` | Generate image artifact | `request: { prompt }` | `string` (data URI) | Project artifact generation | `ai_generate_image` |
-| `ai_transcribe` | Transcribe audio | `request: { audio_base64 }` | `string` | Voice input transcription | `ai_transcribe` |
-| `ai_synthesize` | Text to speech | `request: { text, voice? }` | `string` (base64 WAV) | Chat auto-speak | `ai_synthesize` |
+| `ai_transcribe` | Transcribe audio using selected STT provider | `request: { audio_base64, tier?, mime_type? }` | `string` | Voice input transcription | `ai_transcribe` (`sttProvider`: `local_whisper\|openai\|gemini`, current default `gemini`) |
+| `ai_synthesize` | Text to speech using selected TTS provider | `request: { text, voice? }` | `string` (base64 WAV) | Chat auto-speak | `ai_synthesize` (`ttsProvider`: `gemini\|openai\|local`) |
 | `ai_validate_key` | Validate provider credential/endpoint format | `request: { provider, key }` | `boolean` | Settings provider verification | `ai_validate_key` |
 | `ai_rag_query` | Retrieval-augmented query over vault/search index | `request: { query, limit? }` | `AIRagResult { request_id, answer, context[] }` | AI assistant context mode | `ai_rag_query` |
 | `ai_suggest_links` | Suggest related pages from embeddings+graph | `request: { page_id, limit? }` | `Page[]` | Note linking workflows | `ai_suggest_links` |

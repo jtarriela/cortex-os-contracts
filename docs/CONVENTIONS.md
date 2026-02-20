@@ -191,3 +191,12 @@ Persistence and indexing are explicitly commit-driven.
   - observable queue surface for UI progress/debugging
 - unchanged content hash should create `skipped` status with reason `unchanged_hash`
 - rapid consecutive saves should coalesce queued jobs by `page_id`
+
+---
+
+## 11) Voice Provider Settings (Phase 5)
+
+- `AISettings.sttProvider`: `local_whisper | openai | gemini` (current default: `gemini`; local Whisper deferred)
+- `AISettings.ttsProvider`: `gemini | openai | local` (default: `gemini`)
+- `AISettings.preferredVoice` is provider-specific and must not be constrained to Gemini-only names.
+- `ai_transcribe` and `ai_synthesize` select transport behavior from these settings unless an explicit request override is introduced in a future contract revision.

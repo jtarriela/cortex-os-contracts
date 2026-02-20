@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.1] — 2026-02-20
+
+### Changed
+- Temporary voice-default adjustment while local Whisper runtime is deferred:
+  - `AISettings.sttProvider` default is now `gemini` (online STT).
+  - `local_whisper` remains in the enum and command contracts as a deferred selectable path.
+
+## [0.5.0] — 2026-02-20
+
+### Changed
+- Voice IPC contracts now carry provider-aware semantics per ADR-0013:
+  - `ai_transcribe` request accepts `tier?` and `mime_type?`, and routes via `AISettings.sttProvider` (`local_whisper|openai|gemini`).
+  - `ai_synthesize` routes via `AISettings.ttsProvider` (`gemini|openai|local`) while preserving optional `voice`.
+- Wiring matrix now documents STT/TTS provider selection as part of backend handler behavior.
+
 ## [0.4.0] — 2026-02-19
 
 ### Added
