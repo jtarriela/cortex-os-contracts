@@ -8,7 +8,7 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 
 > **Note (ADR-0006, ADR-0007):** The command names below use dot-notation with domain-specific namespaces (e.g., `tasks.create`, `journal.list`). Per ADR-0006, the production backend uses the EAV/Page model where all entities are pages. The target-state IPC surface uses **snake_case page-centric commands** as defined in `001_architecture.md` Section 6.2 (e.g., `vault_create_page`, `collection_query`, `page_update_props`).
 >
-> The domain-specific commands below are **Phase 0 bridge commands** — they document the frontend's current `dataService.ts` API surface and will be mapped to page-centric commands during Phase 1 IPC wiring:
+> The domain-specific commands below are **Phase 0 bridge commands** — they document the frontend's `services/backend.ts` API surface mapped to EAV page-centric commands. **Phase 1 IPC wiring is complete** — all domain operations go through the generic EAV command surface:
 >
 > | Bridge Command | Target Command | Notes |
 > |---|---|---|
@@ -29,19 +29,19 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `TaskService::create` |
-| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `TaskService::list` |
-| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard | `TaskService::update` |
-| `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `TaskService::delete` |
+| `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `vault_create_page(kind:"task", props, body)` |
+| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query("tasks")` |
+| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard | `page_update_props(page_id, props)` |
+| `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `vault_delete(page_id)` |
 
 ### Projects
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `projects.create` | Create a project | `template_id?`, `title`, `description?`, `priority?` | `Project` | ProjectsIndex (new project) | `ProjectService::create` |
-| `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `ProjectService::list` |
-| `projects.get` | Get project details | `id` | `ProjectDetail` | ProjectDetail view | `ProjectService::get_detail` |
-| `projects.update` | Update project | `id`, updatable fields incl. `milestones`, `artifacts` | `Project` | ProjectDetail (milestones, artifacts) | `ProjectService::update` |
+| `projects.create` | Create a project | `template_id?`, `title`, `description?`, `priority?` | `Project` | ProjectsIndex (new project) | `vault_create_page(kind:"project", props)` |
+| `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `collection_query("projects")` |
+| `projects.get` | Get project details | `id` | `ProjectDetail` | ProjectDetail view | `vault_read(page_id)` |
+| `projects.update` | Update project | `id`, updatable fields incl. `milestones`, `artifacts` | `Project` | ProjectDetail (milestones, artifacts) | `page_update_props(page_id, props)` |
 
 ### Notes / Vault
 
@@ -129,11 +129,11 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `calendar.getToday` | Get today's schedule events | — | `CalendarEvent[]` | TodayDashboard timeline | `CalendarService::get_today` |
-| `calendar.getWeek` | Get week events | `start_date?` | `CalendarEvent[]` | WeekDashboard | `CalendarService::get_week` |
-| `calendar.addEvent` | Create event | `title`, `start` (ISO datetime), `end` (ISO datetime), `type` (enum: `event\|task\|reminder\|deep-work`), `color?`, `description?`, `location?`, `linked_note_id?`, `task_id?` | `CalendarEvent` | TodayDashboard schedule, WeekDashboard click-to-add | `CalendarService::add_event` |
-| `calendar.updateEvent` | Update event | `id`, updatable fields incl. `sync_external?` (boolean) | `CalendarEvent` | WeekDashboard drag | `CalendarService::update_event` |
-| `calendar.deleteEvent` | Delete event | `id` | `void` | WeekDashboard right-click | `CalendarService::delete_event` |
+| `calendar.getToday` | Get today's schedule events | — | `CalendarEvent[]` | TodayDashboard timeline | `calendar_get_today()` |
+| `calendar.getWeek` | Get week events | `start_date?` | `CalendarEvent[]` | WeekDashboard | `calendar_get_week(start_date)` |
+| `calendar.addEvent` | Create event | `title`, `start` (ISO datetime), `end` (ISO datetime), `type` (enum: `event\|task\|reminder\|deep-work`), `color?`, `description?`, `location?`, `linked_note_id?`, `task_id?` | `CalendarEvent` | TodayDashboard schedule, WeekDashboard click-to-add | `vault_create_page(kind:"calendar_event", props)` |
+| `calendar.updateEvent` | Update event | `id`, updatable fields incl. `sync_external?` (boolean) | `CalendarEvent` | WeekDashboard drag | `page_update_props(page_id, props)` |
+| `calendar.deleteEvent` | Delete event | `id` | `void` | WeekDashboard right-click | `vault_delete(page_id)` |
 
 ### Integrations (Google Calendar)
 
