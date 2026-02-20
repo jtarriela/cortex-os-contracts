@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.2] — 2026-02-20
+
+### Changed
+- IPC wiring matrix now explicitly documents canonical Phase 5 payload alignment:
+  - `vault_create_page` canonical request is `{ kind, props, body? }`; `props.title` is canonical title source.
+  - `capture.save` canonical request field is `text` (`content?` accepted as legacy compatibility).
+- Matrix now documents markdown persistence side effects for:
+  - `vault_create_page`
+  - `page_update_body`
+  - `save_commit`
+  - `vault_delete`
+  - `travel.createTrip`
+  - `travel.createCard`
+  - `capture.save`
+- Integrations section now documents Google OAuth env prerequisites:
+  - `GOOGLE_CLIENT_ID`
+  - `GOOGLE_CLIENT_SECRET`
+
 ## [0.5.1] — 2026-02-20
 
 ### Changed

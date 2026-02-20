@@ -57,13 +57,22 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | `save_commit` | Persist note body and enqueue post-commit indexing | `request: { page_id, body }` | `Page` | Notes editor autosave/flush | `save_commit` |
 | `index_queue_status` | Read indexing queue state for diagnostics/progress | `limit?` | `IndexQueueJob[]` | Debug/progress UI | `index_queue_status` |
 
+### Canonical Page Mutations (Phase 5 alignment)
+
+| Command | Description | Request fields | Response fields | Notes |
+|---------|-------------|----------------|----------------|-------|
+| `vault_create_page` | Create a page in EAV + vault markdown | `kind`, `props`, `body?` | `Page` | `props.title` is canonical title input. Optional top-level `title` is compatibility-only and not required by FE/contracts payloads. |
+| `page_update_body` | Update page markdown body | `page_id`, `body` | `Page` | Persists DB body and rewrites markdown file under active vault root. |
+| `save_commit` | Durable save+index operation | `request: { page_id, body }` | `Page` | Persists markdown first, then enqueues/coalesces indexing jobs. |
+| `vault_delete` | Delete page and markdown | `page_id` | `void` | Deletes the corresponding markdown file path before DB removal. |
+
 ### Travel
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `travel.listTrips` | List all trips | — | `Trip[]` | Travel gallery | `TravelService::list` |
-| `travel.createTrip` | Create a trip folder | `title`, `destination`, `start_date`, `end_date` | `Trip` | Travel "New Trip" | `travel_create_trip` |
-| `travel.createCard` | Add card to trip | `trip_id`, `kind`, `title`, `props?` | `Note` | Travel detail "Add Card" | `travel_create_card` |
+| `travel.createTrip` | Create a trip folder and overview note | `title`, `destination`, `start_date`, `end_date` | `Trip` | Travel "New Trip" | `travel_create_trip` (`Travel/Trips/<slug>/Overview.md`, status normalized to `Planning`) |
+| `travel.createCard` | Add card markdown note to trip | `trip_id`, `kind`, `title`, `props?` | `Note` | Travel detail "Add Card" | `travel_create_card` (`Travel/Trips/<slug>/<card-title-slug>.md` with collision suffixing) |
 | `travel.getItinerary` | Get trip + child cards | `trip_id` | `{ trip, cards[] }` | Travel itinerary detail | `travel_get_itinerary` |
 
 ### Finance
@@ -139,9 +148,9 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `integrations.googleAuth` | Authenticate with Google | — | `string` (auth URL) | Settings Integrations | `GoogleService::authenticate` |
-| `integrations.googleCalendars` | List available calendars | — | `string[]` | Settings Integrations | `GoogleService::get_calendars` |
-| `integrations.triggerSync` | Trigger two-way sync manually | — | `boolean` | Settings Integrations | `GoogleService::trigger_sync` |
+| `integrations.googleAuth` | Authenticate with Google | — | `string` (auth URL) | Settings Integrations | `integrations_google_auth` (requires `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`) |
+| `integrations.googleCalendars` | List available calendars | — | `string[]` | Settings Integrations | `integrations_google_calendars` |
+| `integrations.triggerSync` | Trigger two-way sync manually | — | `boolean` | Settings Integrations | `integrations_trigger_sync` |
 
 ### Search
 
@@ -169,7 +178,7 @@ Embedding provider options:
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `capture.save` | Save quick capture | `text` | `void` | TodayDashboard capture widget | `CaptureService::save` |
+| `capture.save` | Save quick capture entry | `text` (canonical), `content?` (legacy compatibility) | `Page` | TodayDashboard capture widget | `capture_save` (appends to `Quick Capture/YYYY-MM-DD.md`) |
 
 ### AI (Phase 4 — backend IPC foundation)
 
