@@ -30,6 +30,7 @@ docs/
    - BE repo must update handlers.
 3. **Wiring Matrix:** Every IPC command must have a side-effect description.
 4. **ADR Compliance:** Schema changes must align with ADR-0006 (EAV/Page model). IPC naming must follow `docs/CONVENTIONS.md`.
+5. **Frontend Consumption Discipline:** Any FE follow-up work from contract changes must follow ADR-0017 hooks controller rules (`hooks/use*.ts`, no direct `services/` imports in views, hook tests in `tests/hooks/`).
 
 ---
 

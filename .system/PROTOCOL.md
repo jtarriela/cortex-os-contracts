@@ -33,11 +33,11 @@ If a behavior exists in code, it must be discoverable in docs and traceable to t
 2. **Interface First**
    - Public surface area (types, signatures, messages, schemas) must be defined **before** tests.
 3. **Atomic Tasks**
-   - Break work into “atoms” with ≤ ~50 lines of net-new logic (excluding tests/docs).
+   - Break work into "atoms" with ≤ ~50 lines of net-new logic (excluding tests/docs).
 4. **No Drift**
    - Canonical artifacts live in one place (see Ownership model below). Other repos consume via generation or submodule pinning.
 5. **Doc-Sync Merge Gate**
-   - A PR may not merge unless doc sync requirements are met per the repo’s `.system/DOC_SYNC_CHECKLIST.md`.
+   - A PR may not merge unless doc sync requirements are met per the repo's `.system/DOC_SYNC_CHECKLIST.md`.
 6. **ADR Lifecycle Sync**
    - When implementation starts or completes for ADR-scoped work, the ADR status must be updated in the same PR set (or paired PR set).
 7. **Issue-Driven Branch Discipline**
@@ -56,7 +56,7 @@ If a behavior exists in code, it must be discoverable in docs and traceable to t
 - **`cortex-os-backend`**: backend implementation + BE architecture docs (services, DB schema/migrations, internal APIs)
 - **`cortex-os-contracts`**: canonical API/IPC contracts + versioning/conventions + wiring matrix
 
-### “Derived artifacts” rule
+### "Derived artifacts" rule
 
 Generated files (clients, stubs, types) are **derived** from `cortex-os-contracts` and must not be edited manually.
 
@@ -66,10 +66,10 @@ Generated files (clients, stubs, types) are **derived** from `cortex-os-contract
 
 See `.system/ROLES.md` for full detail. The default loop is:
 
-1) **Architect** → defines interfaces/contracts and constraints (writes ADR if needed)  
-2) **Test-Gen** → writes failing tests aligned to interfaces and acceptance criteria  
-3) **Coder** → implements minimal code to pass tests  
-4) **Reviewer** → correctness/security/perf/design compliance  
+1) **Architect** → defines interfaces/contracts and constraints (writes ADR if needed)
+2) **Test-Gen** → writes failing tests aligned to interfaces and acceptance criteria
+3) **Coder** → implements minimal code to pass tests
+4) **Reviewer** → correctness/security/perf/design compliance
 5) **Doc-Sync** → updates MEMORY + docs + traceability + ADR status
 
 **Hard rule:** If you are not in the Architect role, you do not invent new public interfaces.
@@ -122,7 +122,7 @@ If your change affects a contract surface owned by another repo, you **must** op
 
 ### Integration pinning rule
 
-After component PRs merge, the integration repo (`cortex-os`) must bump submodule SHAs in a follow-up “pinning PR” (or release PR) and record it in integration docs/MEMORY.
+After component PRs merge, the integration repo (`cortex-os`) must bump submodule SHAs in a follow-up "pinning PR" (or release PR) and record it in integration docs/MEMORY.
 
 ---
 
@@ -134,14 +134,14 @@ After component PRs merge, the integration repo (`cortex-os`) must bump submodul
 2. **Green:** implement minimal code to pass
 3. **Refactor:** clean up while keeping tests green
 4. **Deterministic tests:** no flaky time/network randomness
-5. **No test weakening:** do not “fix” failures by relaxing assertions unless Architect approves
+5. **No test weakening:** do not "fix" failures by relaxing assertions unless Architect approves
 
 ### B) Interface Integrity (IPC / API)
 
 1. **Do not invent interfaces** outside Architect role
 2. **IPC canonical truth:** wiring matrix + message shapes are canonical in `cortex-os-contracts`
 3. **State attribution:** if an IPC command changes frontend state, its side effects must be captured in the wiring matrix
-4. **Error envelope discipline:** errors must be consistent with contract conventions (don’t ad-hoc new error shapes)
+4. **Error envelope discipline:** errors must be consistent with contract conventions (don't ad-hoc new error shapes)
 
 ### C) Frontend Architecture Discipline (if working in FE repo)
 
@@ -149,6 +149,7 @@ After component PRs merge, the integration repo (`cortex-os`) must bump submodul
 2. **No blind component creation:** check component catalog first
 3. **No duplicate stores:** check store registry first
 4. **Reactive invariants:** prefer store subscriptions over deep prop threading unless explicitly justified
+5. **Hooks controller layer (ADR-0017):** views must consume `hooks/use*.ts` controllers, must not import `services/` directly, and must not include `useEffect` data-fetching logic
 
 ### D) Backend Architecture Discipline (if working in BE repo)
 
@@ -168,7 +169,7 @@ After component PRs merge, the integration repo (`cortex-os`) must bump submodul
 
 1. Every shipped behavior must map:
    - **FR → repo → code → test evidence**
-2. Update traceability artifacts per the repo’s `AGENTS.md` and doc sync checklist.
+2. Update traceability artifacts per the repo's `AGENTS.md` and doc sync checklist.
 
 ---
 
@@ -194,7 +195,7 @@ If ADRs are owned in a specific repo (system vs FE vs BE vs contracts), update t
 1. Create branch **before** code changes:
    - `codex/issue-<id>-<slug>`
 2. Post an issue comment:
-   - “Branch `codex/issue-<id>-<slug>` created; work started.”
+   - "Branch `codex/issue-<id>-<slug>` created; work started."
 3. Commits and PR must reference the issue:
    - include `#<id>` in PR body and/or commits
 4. Close issue only when acceptance criteria are met with passing tests + doc sync.
@@ -244,10 +245,10 @@ Stop and escalate to the Architect (or open an ADR) if:
 
 This protocol does **not** prescribe:
 
-- exact folder structure (see each repo’s `AGENTS.md`)
+- exact folder structure (see each repo's `AGENTS.md`)
 - exact test frameworks (but requires deterministic TDD)
 - exact CI implementation (but requires doc sync enforcement)
 
 ------
 
-> If there is a conflict between this protocol and a repo’s `AGENTS.md`, treat `AGENTS.md` as the path authority (what/where), and this protocol as the process authority (how/when).
+> If there is a conflict between this protocol and a repo's `AGENTS.md`, treat `AGENTS.md` as the path authority (what/where), and this protocol as the process authority (how/when).
