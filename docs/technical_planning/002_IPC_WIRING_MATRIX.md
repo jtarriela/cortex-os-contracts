@@ -27,6 +27,7 @@ Top-level command arguments passed from frontend `invoke()` use **camelCase** ke
 
 - `collection_query(collection_id: String)` → `invoke('collection_query', { collectionId })`
 - `calendar_get_week(start_date: Option<String>)` → `invoke('calendar_get_week', { startDate })`
+- `calendar_get_range(start_date: String, end_date: String)` → `invoke('calendar_get_range', { startDate, endDate })`
 - `travel_create_trip(start_date, end_date, budget?)` → `invoke('travel_create_trip', { startDate, endDate, budget })`
 - `habits_toggle(page_id)` → `invoke('habits_toggle', { pageId })`
 
@@ -151,6 +152,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `calendar.getToday` | Get today's schedule events | — | `CalendarEvent[]` | TodayDashboard timeline | `calendar_get_today()` |
 | `calendar.getWeek` | Get week events | `startDate?` | `CalendarEvent[]` | WeekDashboard | `calendar_get_week(start_date)` |
+| `calendar.getRange` | Get calendar events in explicit date window | `startDate` (ISO datetime/date), `endDate` (ISO datetime/date) | `CalendarEvent[]` | `useCalendarWorkspace` range loading for DayFlow week/day/month views | `calendar_get_range(start_date, end_date)` (inclusive `startDate`, exclusive `endDate`, sorted by `props.start`) |
 | `calendar.addEvent` | Create event | `title`, `start` (ISO datetime), `end` (ISO datetime), `type` (enum: `event\|task\|reminder\|deep-work`), `color?`, `description?`, `location?`, `linked_note_id?`, `task_id?` | `CalendarEvent` | TodayDashboard schedule, WeekDashboard click-to-add | `vault_create_page(kind:"calendar_event", props)` |
 | `calendar.updateEvent` | Update event | `id`, updatable fields incl. `sync_external?` (boolean) | `CalendarEvent` | WeekDashboard drag | `page_update_props(page_id, props)` |
 | `calendar.deleteEvent` | Delete event | `id` | `void` | WeekDashboard right-click | `vault_delete(page_id)` |

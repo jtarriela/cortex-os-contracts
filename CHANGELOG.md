@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.0] — 2026-02-20
+
+### Added
+- Calendar workspace range retrieval contract:
+  - `calendar.getRange` / `calendar_get_range(startDate, endDate)`
+  - request boundaries accept ISO datetime or `YYYY-MM-DD`
+  - date-window semantics explicitly documented as inclusive `startDate`, exclusive `endDate`
+
+### Changed
+- Tauri argument casing notes now include `calendar_get_range` (`startDate`, `endDate`).
+- Versioning policy example updated to classify this addition as a MINOR bump.
+
 ## [0.5.4] — 2026-02-20
 
 ### Changed
