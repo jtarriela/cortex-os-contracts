@@ -13,13 +13,24 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 > | Bridge Command | Target Command | Notes |
 > |---|---|---|
 > | `tasks.create` | `vault_create_page(kind: "task", ...)` | Properties normalized to EAV |
-> | `tasks.list` | `collection_query(collection_id: "col_tasks", ...)` | Filters via EAV properties |
-> | `tasks.update` | `page_update_props(page_id, props)` | Property updates via EAV |
-> | `tasks.delete` | `vault_delete(page_id)` | Removes .md file + index |
+> | `tasks.list` | `collection_query(collectionId: "col_tasks")` | Filters via EAV properties |
+> | `tasks.update` | `page_update_props(pageId, props)` | Property updates via EAV |
+> | `tasks.delete` | `vault_delete(pageId)` | Removes .md file + index |
 > | ~~`schedule.getToday`~~ | `calendar.getToday` | **Removed** — ScheduleItem eliminated per ADR-0007; use `calendar.getToday` |
 > | ~~`schedule.addTask`~~ | `calendar.addEvent(type: "task")` | **Removed** — replaced by `calendar.addEvent` per ADR-0007 |
 >
 > The same mapping applies to all other domain commands (projects, journal, habits, goals, meals, workouts, travel, finance). See `docs/CONVENTIONS.md` for the canonical naming convention.
+
+### Tauri Argument Casing (Critical)
+
+Top-level command arguments passed from frontend `invoke()` use **camelCase** keys derived from Rust parameter names.
+
+- `collection_query(collection_id: String)` → `invoke('collection_query', { collectionId })`
+- `calendar_get_week(start_date: Option<String>)` → `invoke('calendar_get_week', { startDate })`
+- `travel_create_trip(start_date, end_date)` → `invoke('travel_create_trip', { startDate, endDate })`
+- `habits_toggle(page_id)` → `invoke('habits_toggle', { pageId })`
+
+Nested `request` payloads keep their documented serde field names (snake_case).
 
 ---
 
@@ -71,9 +82,9 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `travel.listTrips` | List all trips | — | `Trip[]` | Travel gallery | `TravelService::list` |
-| `travel.createTrip` | Create a trip folder and overview note | `title`, `destination`, `start_date`, `end_date` | `Trip` | Travel "New Trip" | `travel_create_trip` (`Travel/Trips/<slug>/Overview.md`, status normalized to `Planning`) |
-| `travel.createCard` | Add card markdown note to trip | `trip_id`, `kind`, `title`, `props?` | `Note` | Travel detail "Add Card" | `travel_create_card` (`Travel/Trips/<slug>/<card-title-slug>.md` with collision suffixing) |
-| `travel.getItinerary` | Get trip + child cards | `trip_id` | `{ trip, cards[] }` | Travel itinerary detail | `travel_get_itinerary` |
+| `travel.createTrip` | Create a trip folder and overview note | `title`, `destination`, `startDate`, `endDate` | `Trip` | Travel "New Trip" | `travel_create_trip` (`Travel/Trips/<slug>/Overview.md`, status normalized to `Planning`) |
+| `travel.createCard` | Add card markdown note to trip | `tripId`, `kind`, `title`, `props?` | `Note` | Travel detail "Add Card" | `travel_create_card` (`Travel/Trips/<slug>/<card-title-slug>.md` with collision suffixing) |
+| `travel.getItinerary` | Get trip + child cards | `tripId` | `{ trip, cards[] }` | Travel itinerary detail | `travel_get_itinerary` |
 
 ### Finance
 
@@ -92,8 +103,8 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `journal.create` | Add journal entry | `date?`, `content`, `mood?`, `tags?` | `JournalEntry` | Journal view | `JournalService::create` |
 | `journal.list` | List entries | `date_range?`, `mood?`, `tag?` | `JournalEntry[]` | Journal view | `JournalService::list` |
-| `journal.query` | Filter entries by date/mood | `start_date?`, `end_date?`, `mood?` | `JournalEntry[]` | Journal timeline filtering | `journal_query` |
-| `journal.moodTrends` | Aggregate mood counts | `start_date?`, `end_date?` | `{ mood, count }[]` | Journal mood chart | `journal_mood_trends` |
+| `journal.query` | Filter entries by date/mood | `startDate?`, `endDate?`, `mood?` | `JournalEntry[]` | Journal timeline filtering | `journal_query` |
+| `journal.moodTrends` | Aggregate mood counts | `startDate?`, `endDate?` | `{ mood, count }[]` | Journal mood chart | `journal_mood_trends` |
 
 ### Habits
 
@@ -101,7 +112,7 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `habits.list` | List all habits | — | `Habit[]` | Habits view, TodayDashboard | `HabitService::list` |
 | `habits.create` | Create a habit | `title`, `frequency?` | `Habit` | Habits "Add Habit" | `HabitService::create` |
-| `habits.toggle` | Toggle completion | `page_id`, `date` | `Habit` | Habits daily check, TodayDashboard | `habits_toggle` |
+| `habits.toggle` | Toggle completion | `pageId`, `date` | `Habit` | Habits daily check, TodayDashboard | `habits_toggle` |
 | `habits.getSummary` | Habit analytics | `days?` | `HabitSummary[]` | Habits analytics panel | `habits_get_summary` |
 
 ### Goals
@@ -111,7 +122,7 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | `goals.list` | List goals | `status?`, `project_id?` | `Goal[]` | Goals view | `GoalService::list` |
 | `goals.create` | Create a goal | `title`, `description?`, `type`, `target_date`, `project_id?` | `Goal` | Goals "Add Goal", AI agent `addGoal` | `GoalService::create` |
 | `goals.update` | Update a goal | `id`, updatable fields | `Goal` | Goals progress slider | `GoalService::update` |
-| `goals.getProgressSummary` | Goal rollup metrics | `project_id?` | `GoalProgressSummary` | Goals dashboard chart | `goals_get_progress_summary` |
+| `goals.getProgressSummary` | Goal rollup metrics | `projectId?` | `GoalProgressSummary` | Goals dashboard chart | `goals_get_progress_summary` |
 
 ### Meals / Recipes
 
@@ -121,7 +132,7 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | `meals.create` | Log a meal | `date`, `type` (enum: `BREAKFAST\|LUNCH\|DINNER\|SNACK`), `description`, `recipe_id?`, `calories?` | `Meal` | Meals weekly planner slot | `MealService::create` |
 | `meals.update` | Update a meal | `id`, updatable Meal fields | `Meal` | Meals weekly planner | `MealService::update` |
 | `meals.delete` | Remove a meal | `id` | `void` | Meals planner slot replace | `MealService::delete` |
-| `meals.getNutritionSummary` | Date-window nutrition rollup | `start_date?`, `end_date?` | `MealsNutritionSummary` | Meals analytics cards | `meals_get_nutrition_summary` |
+| `meals.getNutritionSummary` | Date-window nutrition rollup | `startDate?`, `endDate?` | `MealsNutritionSummary` | Meals analytics cards | `meals_get_nutrition_summary` |
 | `recipes.list` | List recipes | `tags?` | `Recipe[]` | Meals recipe library | `RecipeService::list` |
 | `recipes.create` | Create a recipe | `title`, `ingredients`, `instructions`, `calories?`, `tags?`, `image_url?` | `Recipe` | Meals recipe form | `RecipeService::create` |
 | `recipes.update` | Update a recipe | `id`, updatable Recipe fields incl. `image_url` | `Recipe` | Meals recipe card (image upload) | `RecipeService::update` |
@@ -139,7 +150,7 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `calendar.getToday` | Get today's schedule events | — | `CalendarEvent[]` | TodayDashboard timeline | `calendar_get_today()` |
-| `calendar.getWeek` | Get week events | `start_date?` | `CalendarEvent[]` | WeekDashboard | `calendar_get_week(start_date)` |
+| `calendar.getWeek` | Get week events | `startDate?` | `CalendarEvent[]` | WeekDashboard | `calendar_get_week(start_date)` |
 | `calendar.addEvent` | Create event | `title`, `start` (ISO datetime), `end` (ISO datetime), `type` (enum: `event\|task\|reminder\|deep-work`), `color?`, `description?`, `location?`, `linked_note_id?`, `task_id?` | `CalendarEvent` | TodayDashboard schedule, WeekDashboard click-to-add | `vault_create_page(kind:"calendar_event", props)` |
 | `calendar.updateEvent` | Update event | `id`, updatable fields incl. `sync_external?` (boolean) | `CalendarEvent` | WeekDashboard drag | `page_update_props(page_id, props)` |
 | `calendar.deleteEvent` | Delete event | `id` | `void` | WeekDashboard right-click | `vault_delete(page_id)` |
@@ -158,8 +169,8 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `search.global` | Search all content | `query`, `limit?` | `SearchResult[]` | CommandPalette, AI agent `searchBrain` | `SearchService::global` |
 | `search.semantic` | Vector-only semantic search | `query`, `limit?` | `SearchResult[]` | Future semantic tab / agent tools | `search_semantic` |
-| `search.graphNeighbors` | Traverse related pages by link distance | `page_id`, `depth?`, `limit?` | `SearchResult[]` | CommandPalette related graph badges | `search_graph_neighbors` |
-| `search.graphSuggestLinks` | Suggest unlinked related pages | `page_id`, `limit?` | `SearchResult[]` | Link suggestion workflows (Phase 4 prep) | `search_graph_suggest_links` |
+| `search.graphNeighbors` | Traverse related pages by link distance | `pageId`, `depth?`, `limit?` | `SearchResult[]` | CommandPalette related graph badges | `search_graph_neighbors` |
+| `search.graphSuggestLinks` | Suggest unlinked related pages | `pageId`, `limit?` | `SearchResult[]` | Link suggestion workflows (Phase 4 prep) | `search_graph_suggest_links` |
 
 ## Phase 3 Page-Centric Notes
 
@@ -194,8 +205,8 @@ Embedding provider options:
 | `ai_rag_query` | Retrieval-augmented query over vault/search index | `request: { query, limit? }` | `AIRagResult { request_id, answer, context[] }` | AI assistant context mode | `ai_rag_query` |
 | `ai_suggest_links` | Suggest related pages from embeddings+graph | `request: { page_id, limit? }` | `Page[]` | Note linking workflows | `ai_suggest_links` |
 | `review_list` | List Morning Review items | `status?` (`pending|approved|rejected`) | `ReviewQueueItem[]` | Morning Review UI | `review_list` |
-| `review_approve` | Approve review item | `item_id`, `edited_json?` | `boolean` | Morning Review UI | `review_approve` |
-| `review_reject` | Reject review item | `item_id` | `boolean` | Morning Review UI | `review_reject` |
+| `review_approve` | Approve review item | `itemId`, `editedJson?` | `boolean` | Morning Review UI | `review_approve` |
+| `review_reject` | Reject review item | `itemId` | `boolean` | Morning Review UI | `review_reject` |
 | `token_usage` | Query token/cost usage rollups | `days?` | `TokenUsageEntry[]` | Settings usage dashboard | `token_usage` |
 
 ### Secret Storage (Phase 4)
@@ -203,8 +214,8 @@ Embedding provider options:
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `secret_set` | Store encrypted secret envelope | `request: { secret_key, plaintext }` | `boolean` | Secure key rotation flows | `secret_set` |
-| `secret_get` | Retrieve decrypted secret value | `secret_key` | `string \| null` | Secure settings bootstrap | `secret_get` |
-| `secret_delete` | Remove encrypted secret | `secret_key` | `boolean` | Credential revoke flows | `secret_delete` |
+| `secret_get` | Retrieve decrypted secret value | `secretKey` | `string \| null` | Secure settings bootstrap | `secret_get` |
+| `secret_delete` | Remove encrypted secret | `secretKey` | `boolean` | Credential revoke flows | `secret_delete` |
 
 ## Event Streams
 

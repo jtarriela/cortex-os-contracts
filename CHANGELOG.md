@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.3] — 2026-02-20
+
+### Changed
+- Clarified Tauri invoke argument casing in the IPC wiring matrix:
+  - top-level command args are camelCase (`collectionId`, `pageId`, `startDate`, etc.)
+  - nested `request` payload fields remain snake_case where documented.
+- Updated matrix request-field examples for affected commands (`collection_query`, `calendar_get_week`, `travel_*`, `habits_toggle`, `journal_*`, `goals_get_progress_summary`, `meals_get_nutrition_summary`, `search_graph_*`, `review_*`, `secret_get/delete`) to reflect runtime-validated casing.
+
 ## [0.5.2] — 2026-02-20
 
 ### Changed
