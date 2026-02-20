@@ -111,6 +111,8 @@ interface PaginatedResponse<T> {
 
 **Timezone rule:** All datetimes stored in UTC. Frontend converts to local timezone for display. The user's timezone preference is stored in `settings`.
 
+**Range window rule:** Commands that accept date windows (for example `calendar_get_range`) use **inclusive start / exclusive end** semantics: `[start, end)`.
+
 ---
 
 ## 6) Null vs. Absent
