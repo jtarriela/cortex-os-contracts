@@ -152,12 +152,12 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `calendar.getToday` | Get today's schedule events | — | `CalendarEvent[]` | TodayDashboard timeline | `calendar_get_today()` |
 | `calendar.getWeek` | Get week events | `startDate?` | `CalendarEvent[]` | WeekDashboard | `calendar_get_week(start_date)` |
-| `calendar.getRange` | Get calendar events in explicit date window | `startDate` (ISO datetime/date), `endDate` (ISO datetime/date) | `CalendarEvent[]` | `useCalendarWorkspace` range loading for DayFlow week/day/month views | `calendar_get_range(start_date, end_date)` (inclusive `startDate`, exclusive `endDate`, sorted by `props.start`) |
+| `calendar.getRange` | Get calendar events in explicit date window | `startDate` (ISO datetime/date), `endDate` (ISO datetime/date) | `CalendarEvent[]` | `useCalendarWorkspace` range loading for DayFlow week/day/month views | `calendar_get_range(start_date, end_date)` (inclusive `startDate`, exclusive `endDate`, includes `calendar_event` + scheduled `task` pages, sorted by `COALESCE(props.start, props.start_time)`) |
 | `calendar.addEvent` | Create event | `title`, `start` (ISO datetime), `end` (ISO datetime), `type` (enum: `event\|task\|reminder\|deep-work`), `color?`, `description?`, `location?`, `linked_note_id?`, `task_id?` | `CalendarEvent` | TodayDashboard schedule, WeekDashboard click-to-add | `vault_create_page(kind:"calendar_event", props)` |
 | `calendar.updateEvent` | Update event | `id`, updatable fields incl. `sync_external?` (boolean) | `CalendarEvent` | WeekDashboard drag | `page_update_props(page_id, props)` |
-| `calendar.deleteEvent` | Delete event | `id` | `void` | WeekDashboard right-click | `vault_delete(page_id)` |
-| `calendar.scheduleTask` | External sidebar task drop → create a linked `calendar_event` | `taskId`, `start` (ISO datetime for timed; `"YYYY-MM-DD"` for all-day), `end` (ISO datetime or next-day date), `allDay` (bool) | `CalendarEvent` | Calendar week/month external drop handler (E24) | `calendar_schedule_task(task_id, start, end, all_day)` |
-| `calendar.rescheduleEvent` | Move a Cortex-managed event to a new time slot via drag. Returns `INVALID_INPUT` if event is read-only (Google-sourced — FR-027) | `eventId`, `start`, `end`, `allDay` (bool) | `CalendarEvent` | Calendar drag-to-reschedule (E24) | `calendar_reschedule_event(event_id, start, end, all_day)` |
+| `calendar.deleteEvent` | Delete/unschedule event | `id` | `void` | WeekDashboard right-click/delete action | `calendar_delete_event(event_id)` (`calendar_event` delete, `task` unschedule path) |
+| `calendar.scheduleTask` | Schedule an existing task by writing task time props | `taskId`, `start` (ISO datetime for timed; `"YYYY-MM-DD"` for all-day), `end` (ISO datetime or next-day date), `allDay` (bool) | `CalendarEvent` | WeekDashboard schedule modal (existing task path) | `calendar_schedule_task(task_id, start, end, all_day)` (updates `task.start_time/end_time`) |
+| `calendar.rescheduleEvent` | Move a scheduled item to a new slot. Supports `calendar_event` and `task` IDs. Returns `INVALID_INPUT` if event is read-only (Google-sourced — FR-027) | `eventId`, `start`, `end`, `allDay` (bool) | `CalendarEvent` | DayFlow drag/resize mutation path | `calendar_reschedule_event(event_id, start, end, all_day)` |
 | `calendar.eventIsEditable` | Query whether a calendar event may be mutated. Returns `false` for Google-sourced read-only events (FR-027). Use on page load to pre-populate editability flags without optimistic guessing. | `eventId` (string) | `boolean` | DayFlow adapter; `useCalendarWorkspace` on event load (E25) | `calendar_event_is_editable(event_id)` |
 
 > **[E24] Drag/Drop Intent Mapping** (ADR-0018 External Drop Gate):
@@ -221,7 +221,39 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - Frontend: `npm run test:dayflow-guardrails`
 > - Backend: `cargo test -p cortex-storage` and `cargo test -p cortex-app`
 > - Linked paired PRs in `cortex-os-frontend` and `cortex-os-backend`
+
+> **[E28-BugFix] Scheduling UX Consolidation (final state):**
 >
+> Two drag/drop bugs (stale callback closure and fake `DragEvent` crash path) drove a shift to a modal-first scheduling flow in Week view.
+>
+> **Final UX model in this branch:**
+> - Unscheduled sidebar drag scheduling is removed from `WeekDashboard`.
+> - Scheduling entrypoints are click-based:
+>   - header `Schedule` button
+>   - DayFlow toolbar `+` (intercepted via `onAddClick`)
+> - Both open `ScheduleTaskModal` (task picker + time picker).
+>
+> **Calendar projection model (`useWeekDashboard.calendarItems`):**
+> - `googleEvents`: `events.filter(e => e.source === 'google')`
+> - `scheduledTaskItems`: derived from `tasks` where `startTime/endTime` are set
+> - `calendarItems = [...googleEvents, ...scheduledTaskItems]`
+> - De-dup guard excludes task items already represented by a Google bridge event (`taskEventIds`).
+>
+> **Authoritative scheduling/mutation paths:**
+>
+> | Action | Frontend entry point | IPC / persistence path |
+> |-|-|-|
+> | Schedule existing task from modal | `handleScheduleExistingTask` | `updateTask` + `calendar_schedule_task` |
+> | Schedule new task from modal | `handleScheduleNewTask` | `addTask` (`vault_create_page(kind:"task")` with `start_time/end_time`) |
+> | Move/resize scheduled task | `handleDayflowEventUpdate` / `persistResizedItem` | `updateTask` (+ `calendar_reschedule_event` for Google-linked bridge events) |
+> | Move pure calendar event | `handleDayflowEventUpdate` | `updateCalendarEvent` / `calendar_reschedule_event` |
+>
+> **Stale-closure guard retained:**
+> `tasksRef` and `eventsRef` are live refs used by DayFlow callbacks so handler logic always reads current state.
+>
+> **External-drop callback note:**
+> `handleExternalDrop` and DayFlow native window drop listeners remain implemented, but `WeekDashboard` no longer wires `onExternalDrop` in this branch's final UI flow.
+
 > **[E26] Responsive Breakpoints (frontend-only, no IPC impact):**
 >
 > `DayflowCalendarSurface` wraps `DayFlowCalendar` in a responsive container. No command signatures change. Breakpoint behaviour is a CSS/layout concern only.
