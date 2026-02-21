@@ -158,6 +158,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `calendar.deleteEvent` | Delete event | `id` | `void` | WeekDashboard right-click | `vault_delete(page_id)` |
 | `calendar.scheduleTask` | External sidebar task drop → create a linked `calendar_event` | `taskId`, `start` (ISO datetime for timed; `"YYYY-MM-DD"` for all-day), `end` (ISO datetime or next-day date), `allDay` (bool) | `CalendarEvent` | Calendar week/month external drop handler (E24) | `calendar_schedule_task(task_id, start, end, all_day)` |
 | `calendar.rescheduleEvent` | Move a Cortex-managed event to a new time slot via drag. Returns `INVALID_INPUT` if event is read-only (Google-sourced — FR-027) | `eventId`, `start`, `end`, `allDay` (bool) | `CalendarEvent` | Calendar drag-to-reschedule (E24) | `calendar_reschedule_event(event_id, start, end, all_day)` |
+| `calendar.eventIsEditable` | Query whether a calendar event may be mutated. Returns `false` for Google-sourced read-only events (FR-027). Use on page load to pre-populate editability flags without optimistic guessing. | `eventId` (string) | `boolean` | DayFlow adapter; `useCalendarWorkspace` on event load (E25) | `calendar_event_is_editable(event_id)` |
 
 > **[E24] Drag/Drop Intent Mapping** (ADR-0018 External Drop Gate):
 >
@@ -166,7 +167,29 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > | Timed (week/day view) | `false` | full ISO datetime `"2026-02-20T14:00:00Z"` | full ISO datetime |
 > | All-day (month view / all-day row) | `true` | date-only `"2026-02-20"` | next calendar date `"2026-02-21"` |
 >
-> `CalendarEvent` props always include `all_day: boolean`. Frontend must check `props.read_only` before initiating drag on Google-sourced events; the backend also enforces this guard server-side.
+> `CalendarEvent` response shape includes `readOnly: boolean` (sourced from `props.read_only`). Frontend must use this field to gate drag/resize/edit interactions before initiating — snap-back is not the primary permission model (E25, FR-027). The backend enforces all mutation guards server-side independently.
+
+> **[E25] Permission Policy — Mixed Editability** (ADR-0018 Mixed Editability Gate):
+>
+> | Event source | `readOnly` | Drag/resize | Edit props | Delete |
+> |-|-|-|-|-|
+> | Cortex-managed | `false` | allowed | allowed | allowed |
+> | Google-sourced (inbound sync) | `true` | blocked at UI + backend | blocked at backend | blocked at backend |
+>
+> **`readOnly` field on `CalendarEvent`:**
+> - Populated from `props.read_only: bool` in the backend EAV store.
+> - Google-inbound sync sets `read_only = true`; Cortex-created events omit the field (defaults `false`).
+> - Frontend normalises absent field to `false` in the adapter layer.
+>
+> **Error semantics for read-only mutation attempts:**
+>
+> Any IPC command that mutates a read-only calendar event (`calendar.rescheduleEvent`, `calendar.updateEvent`, `calendar.deleteEvent`) returns:
+>
+> ```json
+> { "error": { "code": "INVALID_INPUT", "message": "event is read-only: cannot mutate Google-sourced events" } }
+> ```
+>
+> Frontend must **not** reach this path in normal operation — the UI pre-flight guard (`canEditEvent(event)`) prevents the invoke. The backend guard is a defence-in-depth layer (FR-027).
 
 ### Integrations (Google Calendar)
 
