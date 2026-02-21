@@ -213,6 +213,15 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 >
 > Affected commands: `calendar.rescheduleEvent`, `calendar.updateEvent`. Frontend never generates invalid intervals in normal operation; the guard is a server-side correctness invariant (E26, FR-015).
 >
+> **[E27] Upgrade Compatibility Governance (ADR-0018 Performance + Upgrade Gate):**
+>
+> Any calendar contract change (field shape, validation semantics, or error envelope behavior) must complete the calendar compatibility checklist in `docs/VERSIONING.md` and `docs/CODEGEN.md` before merge.
+>
+> Required paired validation evidence:
+> - Frontend: `npm run test:dayflow-guardrails`
+> - Backend: `cargo test -p cortex-storage` and `cargo test -p cortex-app`
+> - Linked paired PRs in `cortex-os-frontend` and `cortex-os-backend`
+>
 > **[E26] Responsive Breakpoints (frontend-only, no IPC impact):**
 >
 > `DayflowCalendarSurface` wraps `DayFlowCalendar` in a responsive container. No command signatures change. Breakpoint behaviour is a CSS/layout concern only.

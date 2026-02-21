@@ -152,3 +152,29 @@ During Phase 1 IPC wiring:
 4. Once all views use `backend.ts`, `dataService.ts` is deleted
 
 The test strategy (ADR-0012) ensures that tests written against `dataService.ts` contracts transfer seamlessly — the test assertions remain valid, only the import path changes.
+
+---
+
+## 8) Calendar Contract Change Workflow (ADR-0018 E27)
+
+When calendar command signatures or payload fields change, generation alone is not sufficient. Use this workflow to keep frontend/backend consumers compatible.
+
+### Required flow
+
+1. Update `docs/technical_planning/002_IPC_WIRING_MATRIX.md` calendar section first.
+2. Regenerate/align consumer bindings and callsites in frontend/backend.
+3. Run consumer validation:
+   - frontend: `npm run test:dayflow-guardrails`
+   - backend: `cargo test -p cortex-storage` and `cargo test -p cortex-app`
+4. Confirm versioning + changelog updates in this repo (`VERSIONING.md`, `CHANGELOG.md`).
+5. Link paired PRs in contracts/frontend/backend before merge.
+
+### Calendar change pre-merge checklist
+
+```text
+- [ ] Wiring matrix calendar entries updated and reviewed
+- [ ] Frontend DayFlow adapter/guardrail suite passes
+- [ ] Backend calendar storage/app suites pass
+- [ ] Paired PR links included in all three repos
+- [ ] Versioning/changelog updates are present and consistent
+```
