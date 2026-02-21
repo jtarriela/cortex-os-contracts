@@ -191,6 +191,38 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 >
 > Frontend must **not** reach this path in normal operation — the UI pre-flight guard (`canEditEvent(event)`) prevents the invoke. The backend guard is a defence-in-depth layer (FR-027).
 
+> **[E26] Keyboard Interaction → IPC Command Mapping** (ADR-0018 A11y/Keyboard Gate, FR-018):
+>
+> Keyboard navigation routes through the same DayFlow plugin callbacks as pointer interactions. No new IPC commands are required. The `@dayflow/plugin-keyboard-shortcuts` plugin (already bootstrapped in `dayflowPlugins.ts`) fires the same `onEventUpdate`, `onEventCreate`, `onEventDelete` callbacks; the Cortex adapter translates them to the commands below.
+>
+> | Keyboard action | DayFlow callback | IPC command path |
+> |-|-|-|
+> | Arrow keys (week/day grid navigation) | internal focus move | no IPC — view state only |
+> | `Enter` / `Space` on focused event | `onEventClick` | no IPC — opens `onEventSelect` detail panel |
+> | `Escape` | Cortex surface `onKeyDown` handler | no IPC — closes open detail / deselects |
+> | `Delete` / `Backspace` on focused event | `onEventDelete` | `calendar_delete_event(eventId)` (E25 guard applies) |
+> | Drag-and-drop via keyboard (plugin) | `onEventUpdate` | `calendar_reschedule_event(eventId, start, end, allDay)` |
+>
+> **[E26] Date/Time Interval Validation:**
+>
+> All calendar mutation commands validate `start < end` before persisting. If the invariant fails, the backend returns:
+>
+> ```json
+> { "error": { "code": "INVALID_INPUT", "message": "event interval invalid: start must be before end" } }
+> ```
+>
+> Affected commands: `calendar.rescheduleEvent`, `calendar.updateEvent`. Frontend never generates invalid intervals in normal operation; the guard is a server-side correctness invariant (E26, FR-015).
+>
+> **[E26] Responsive Breakpoints (frontend-only, no IPC impact):**
+>
+> `DayflowCalendarSurface` wraps `DayFlowCalendar` in a responsive container. No command signatures change. Breakpoint behaviour is a CSS/layout concern only.
+>
+> | Breakpoint | Minimum width | Calendar behaviour |
+> |-|-|-|
+> | Mobile (sm) | `< 640px` | Day view only; week/month columns collapse to single-day scroll |
+> | Tablet (md) | `640px – 1023px` | Week view with compressed column widths |
+> | Desktop (lg+) | `≥ 1024px` | Full week/month grid at design spec widths |
+
 ### Integrations (Google Calendar)
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
