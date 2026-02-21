@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.1] — 2026-02-21
+
+### Changed
+- Added ADR-0018 E27 calendar compatibility governance:
+  - `docs/VERSIONING.md` now includes mandatory calendar change review criteria and paired validation checklist.
+  - `docs/CODEGEN.md` now includes calendar contract workflow steps requiring frontend/backend validation evidence before merge.
+  - `docs/technical_planning/002_IPC_WIRING_MATRIX.md` calendar section now includes explicit E27 upgrade-governance note and required paired test evidence.
+
 ## [0.6.0] — 2026-02-20
 
 ### Added

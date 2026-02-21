@@ -19,7 +19,7 @@ MAJOR.MINOR.PATCH
 | MINOR | New commands added, new optional fields added to existing commands |
 | PATCH | Documentation fixes, typo corrections, no contract changes |
 
-**Current version:** `0.6.0` (pre-release, all changes are considered non-breaking until 1.0)
+**Current version:** `0.6.1` (pre-release, all changes are considered non-breaking until 1.0)
 
 ---
 
@@ -103,3 +103,34 @@ All contract changes are documented in `CHANGELOG.md`. Each entry includes:
 - Date
 - List of added/changed/deprecated/removed commands and fields
 - Reference to the relevant ADR or issue
+
+---
+
+## 7) Calendar Compatibility Governance (ADR-0018 E27)
+
+Calendar contract changes carry elevated regression risk because DayFlow adapter behavior, backend sync semantics, and frontend interaction guards all depend on stable payload fields.
+
+### Changes that require calendar compatibility review
+
+- any add/remove/rename/type-change for calendar request/response fields
+- calendar mutation error-shape changes (`INVALID_INPUT` semantics, message behavior)
+- command behavior changes that alter read-only/editability policy interpretation
+- date/time boundary or interval validation rule changes
+
+### Mandatory paired validation before merge
+
+For calendar-surface contract changes, contracts PRs must link:
+
+- paired backend implementation PR with passing storage/app tests
+- paired frontend implementation PR with passing adapter + guardrail tests
+- evidence that wiring matrix, versioning, and changelog entries are synchronized
+
+### Reviewer checklist snippet (calendar change gate)
+
+```text
+- [ ] Calendar compatibility impact assessed (breaking/non-breaking classification)
+- [ ] Paired backend PR linked with test evidence (`cargo test -p cortex-storage`, `cargo test -p cortex-app`)
+- [ ] Paired frontend PR linked with test evidence (`npm run test:dayflow-guardrails`)
+- [ ] `002_IPC_WIRING_MATRIX.md` calendar section updated
+- [ ] Changelog/version bump policy applied per SemVer rules
+```
