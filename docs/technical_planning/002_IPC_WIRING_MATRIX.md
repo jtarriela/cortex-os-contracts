@@ -156,6 +156,17 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `calendar.addEvent` | Create event | `title`, `start` (ISO datetime), `end` (ISO datetime), `type` (enum: `event\|task\|reminder\|deep-work`), `color?`, `description?`, `location?`, `linked_note_id?`, `task_id?` | `CalendarEvent` | TodayDashboard schedule, WeekDashboard click-to-add | `vault_create_page(kind:"calendar_event", props)` |
 | `calendar.updateEvent` | Update event | `id`, updatable fields incl. `sync_external?` (boolean) | `CalendarEvent` | WeekDashboard drag | `page_update_props(page_id, props)` |
 | `calendar.deleteEvent` | Delete event | `id` | `void` | WeekDashboard right-click | `vault_delete(page_id)` |
+| `calendar.scheduleTask` | External sidebar task drop → create a linked `calendar_event` | `taskId`, `start` (ISO datetime for timed; `"YYYY-MM-DD"` for all-day), `end` (ISO datetime or next-day date), `allDay` (bool) | `CalendarEvent` | Calendar week/month external drop handler (E24) | `calendar_schedule_task(task_id, start, end, all_day)` |
+| `calendar.rescheduleEvent` | Move a Cortex-managed event to a new time slot via drag. Returns `INVALID_INPUT` if event is read-only (Google-sourced — FR-027) | `eventId`, `start`, `end`, `allDay` (bool) | `CalendarEvent` | Calendar drag-to-reschedule (E24) | `calendar_reschedule_event(event_id, start, end, all_day)` |
+
+> **[E24] Drag/Drop Intent Mapping** (ADR-0018 External Drop Gate):
+>
+> | Slot type | `allDay` | `start` format | `end` format |
+> |-|-|-|-|
+> | Timed (week/day view) | `false` | full ISO datetime `"2026-02-20T14:00:00Z"` | full ISO datetime |
+> | All-day (month view / all-day row) | `true` | date-only `"2026-02-20"` | next calendar date `"2026-02-21"` |
+>
+> `CalendarEvent` props always include `all_day: boolean`. Frontend must check `props.read_only` before initiating drag on Google-sourced events; the backend also enforces this guard server-side.
 
 ### Integrations (Google Calendar)
 
