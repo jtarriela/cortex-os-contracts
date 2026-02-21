@@ -221,7 +221,28 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - Frontend: `npm run test:dayflow-guardrails`
 > - Backend: `cargo test -p cortex-storage` and `cargo test -p cortex-app`
 > - Linked paired PRs in `cortex-os-frontend` and `cortex-os-backend`
+
+> **[E28-BugFix] Frontend Scheduling Path Consolidation:**
 >
+> Two drag/drop bugs (stale-closure reset + silent sidebar crash) prompted an architectural cleanup of the frontend scheduling path. No new IPC commands were added; the fix routes existing IPC correctly.
+>
+> **Single source of truth for calendar items:**
+> `calendarItems` in `useWeekDashboard` is now exclusively sourced from `getCalendarRangeEvents` (i.e., `events` returned by `calendar.getRange`). The previous `scheduledTasks` path — filtering the `tasks` array by `startTime` and injecting them into the calendar grid — has been removed. Tasks appear on the calendar grid **only** as `calendar_event` pages created by `calendar_schedule_task`.
+>
+> **Authoritative scheduling commands (frontend entry points):**
+>
+> | Action | Frontend entry point | IPC command |
+> |-|-|-|
+> | Sidebar task → timed slot (first schedule) | `handleExternalDrop` in `useWeekDashboard` | `calendar_schedule_task` |
+> | Drag existing task/event to new slot | `handleDayflowEventUpdate` in `useWeekDashboard` | `calendar_reschedule_event` |
+> | `tasks.update` with `start_time`/`end_time` | **No longer used for calendar scheduling** | `page_update_props` (non-calendar props only) |
+>
+> **`handleExternalDrop` design note:**
+> Previously `WeekDashboard.tsx` constructed a fake `DragEvent` (without `preventDefault`) and routed it through `useDragDrop.handlers.onDrop`, which called `event.preventDefault()` and crashed silently. `handleExternalDrop` bypasses the `DragEvent` API entirely — it accepts `(sourceId: string, type: string, target: { day: Date; hour: number; minute: number })` and calls `calendarScheduleTask` or `calendarRescheduleEvent` directly.
+>
+> **Stable-callback pattern for DayFlow event handlers:**
+> `handleDayflowEventUpdate` and `handleDayflowEventDelete` in `useWeekDashboard` now use live refs (`tasksRef`, `eventsRef`) updated by `useEffect` to read current state without adding `tasks`/`events` to their `useCallback` dependency arrays. This prevents DayFlow's internal callback store from capturing stale closures on re-render.
+
 > **[E26] Responsive Breakpoints (frontend-only, no IPC impact):**
 >
 > `DayflowCalendarSurface` wraps `DayFlowCalendar` in a responsive container. No command signatures change. Breakpoint behaviour is a CSS/layout concern only.
