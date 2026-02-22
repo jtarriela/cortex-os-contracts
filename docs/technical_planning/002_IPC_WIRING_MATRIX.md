@@ -43,7 +43,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `vault_create_page(kind:"task", props, body)` |
 | `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query("tasks")` |
-| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard | `page_update_props(page_id, props)` |
+| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:\"FS\", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `page_update_props(page_id, props)` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `vault_delete(page_id)` |
 
 ### Projects
@@ -53,7 +53,23 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `projects.create` | Create a project | `template_id?`, `title`, `description?`, `priority?` | `Project` | ProjectsIndex (new project) | `vault_create_page(kind:"project", props)` |
 | `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `collection_query("projects")` |
 | `projects.get` | Get project details | `id` | `ProjectDetail` | ProjectDetail view | `vault_read(page_id)` |
-| `projects.update` | Update project | `id`, updatable fields incl. `milestones`, `artifacts` | `Project` | ProjectDetail (milestones, artifacts) | `page_update_props(page_id, props)` |
+| `projects.update` | Update project | `id`, updatable fields incl. status/priority/date-range, `artifacts`, `columns` (milestones are dual-write body + milestone pages) | `Project` | ProjectDetail (overview + timeline), ProjectsIndex cards | `page_update_props(page_id, props)` |
+
+### Project Milestones (Dual-Write)
+
+| Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
+|---------|-------------|----------------|----------------|----------------|----------------|
+| `projects.milestones.list` | List milestone pages for project | `project_id` | `ProjectMilestone[]` | ProjectDetail timeline + body sync | `collection_query(\"col_project_milestones\")` + frontend filter by `project_ref` |
+| `projects.milestones.create` | Create milestone page | `project_ref`, `title`, `target_date`, `status`, `dependencies[]`, `baseline_date?`, `completed_date?`, `checklist_anchor_id` | `ProjectMilestone` | Timeline add milestone, body→page sync | `vault_create_page(kind:\"project_milestone\", props)` |
+| `projects.milestones.update` | Update milestone page | `id` + updatable milestone fields | `ProjectMilestone` | Timeline edits, body checkbox/status sync | `page_update_props(page_id, props)` |
+| `projects.milestones.delete` | Delete milestone page | `id` | `void` | Timeline delete, body line delete sync | `vault_delete(page_id)` |
+
+> Dual-write sync policy (ADR-0021):
+> - Body checklist lines use stable anchors: `<!-- milestone:{checklist_anchor_id} -->`.
+> - Sync executes on each project save and milestone mutation.
+> - Conflict resolution: milestone page wins.
+> - Removing a markerized checklist line deletes the linked milestone page.
+> - Checkbox mapping: checked => `COMPLETED`, unchecked => `NOT_STARTED`.
 
 ### Notes / Vault
 

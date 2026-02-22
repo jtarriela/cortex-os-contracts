@@ -19,7 +19,7 @@ MAJOR.MINOR.PATCH
 | MINOR | New commands added, new optional fields added to existing commands |
 | PATCH | Documentation fixes, typo corrections, no contract changes |
 
-**Current version:** `0.6.1` (pre-release, all changes are considered non-breaking until 1.0)
+**Current version:** `0.7.0` (pre-release, all changes are considered non-breaking until 1.0)
 
 ---
 
