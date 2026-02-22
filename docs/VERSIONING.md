@@ -134,3 +134,14 @@ For calendar-surface contract changes, contracts PRs must link:
 - [ ] `002_IPC_WIRING_MATRIX.md` calendar section updated
 - [ ] Changelog/version bump policy applied per SemVer rules
 ```
+
+### Google Mirror / Full-Sync Compatibility Notes (2026-02-22)
+
+The following contract additions are classified as **MINOR** changes (additive fields/commands):
+
+- `integrations.googleCalendars` response expanded from `string[]` to metadata objects (`id`, `summary`, `backgroundColor?`, `primary`)
+- `IntegrationSettings` additive fields: `editableCalendars`, `mirrorMigrationV1Done`
+- new command: `integrations.deleteMirroredEvent`
+- new event stream payload: `integrations_sync_progress`
+
+Frontend and backend must treat unknown response/event fields as forward-compatible.

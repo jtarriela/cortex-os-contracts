@@ -269,8 +269,18 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `integrations.googleAuth` | Authenticate with Google | — | `string` (auth URL) | Settings Integrations | `integrations_google_auth` (requires `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`) |
-| `integrations.googleCalendars` | List available calendars | — | `string[]` | Settings Integrations | `integrations_google_calendars` |
-| `integrations.triggerSync` | Trigger two-way sync manually | — | `boolean` | Settings Integrations | `integrations_trigger_sync` |
+| `integrations.googleCalendars` | List available calendars with metadata | — | `GoogleCalendarMetadata[]` (`id`, `summary`, `backgroundColor?`, `primary`) | Settings Integrations, Week planner filtering | `integrations_google_calendars` |
+| `integrations.triggerSync` | Trigger two-way sync manually and emit progress telemetry | — | `boolean` | Settings Integrations, background sync queue | `integrations_trigger_sync` |
+| `integrations.deleteMirroredEvent` | Delete mirrored Google source event and linked local mirror entities | `pageId` | `boolean` | Week planner mirrored-delete flow | `integrations_delete_mirrored_event` |
+
+> **Integration settings payload updates:**
+>
+> `IntegrationSettings` now includes:
+> - `syncedCalendars: string[]` (calendar IDs/names selected for sync)
+> - `editableCalendars: string[]` (subset selected for writable task-mirror workflow)
+> - `mirrorMigrationV1Done: boolean` (one-time migration marker)
+>
+> Existing fields (`googleCalendarConnected`, `googleCalendarEmail`, `syncEnabled`) are unchanged.
 
 ### Search
 
@@ -335,6 +345,7 @@ Realtime frontend invalidation for Phase 3 uses Tauri event channels in addition
 | `page_created` | A page/entity was created | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-creation handlers (`vault_create_page`, `capture_save`, etc.) |
 | `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-update handlers (`page_update_props`, `page_update_body`, `habits_toggle`) |
 | `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | `vault_delete` |
+| `integrations_sync_progress` | Google Calendar sync lifecycle/progress updates | `phase`, `calendarId?`, `calendarName?`, `processed?`, `total?`, `message?` | Background sync status UX (WeekDashboard + Settings) | `integrations_trigger_sync` |
 | `ai_stream_chunk` | Streamed AI text chunk | `requestId`, `text` | `services/aiService.ts` streaming updates in RightDrawer | `ai_chat` |
 | `ai_stream_done` | Stream completion metadata | `requestId`, `inputTokens`, `outputTokens`, `estimatedCostUsd` | `services/aiService.ts` completion handling | `ai_chat` |
 | `ai_stream_error` | Stream failure notification | `requestId`, `error`, `provider`, `code` | `services/aiService.ts` error/retry UX | `ai_chat` provider adapter failure path |
