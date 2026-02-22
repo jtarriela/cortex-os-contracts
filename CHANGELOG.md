@@ -17,11 +17,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `obsidian.syncStatus` / `obsidian_sync_status`
 - New event stream contract:
   - `obsidian_sync_progress` with phase/progress payload for linked-vault sync UI.
+- Project milestone dual-write contract notes and CRUD mapping via canonical page commands:
+  - `projects.milestones.list` => `collection_query("col_project_milestones")`
+  - `projects.milestones.create` => `vault_create_page(kind:"project_milestone", props)`
+  - `projects.milestones.update` => `page_update_props(page_id, props)`
+  - `projects.milestones.delete` => `vault_delete(page_id)`
+- Explicit milestone/body checklist sync policy:
+  - marker format `<!-- milestone:{checklist_anchor_id} -->`
+  - on-save synchronization
+  - conflict policy `milestone-page-wins`
+  - markerized checklist deletion => milestone page deletion
+  - checkbox mapping `checked => COMPLETED`, `unchecked => NOT_STARTED`
 
 ### Changed
 - Search/AI conventions now document ADR-0019 embedding provider policy:
   - `AISettings.embeddingProvider` = `same_as_model | openai | gemini | ollama | hash`
   - fallback from unsupported provider embeddings to deterministic `hash`.
+- `tasks.update` request schema now documents timeline planning fields and dependency payload:
+  - `planned_start_date`, `planned_end_date`
+  - `baseline_start_date`, `baseline_end_date`
+  - `actual_start_date`, `actual_end_date`
+  - `dependencies[]` (`FS` + `lag_days?`)
+- `projects.update` row now clarifies that milestones are handled via dual-write body + milestone pages rather than `props.milestones`.
 
 ## [0.6.1] — 2026-02-21
 
