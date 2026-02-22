@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.0] — 2026-02-22
+
+### Added
+- ADR-0019 linked-vault contract surface:
+  - `obsidian.linkAdd` / `obsidian_link_add`
+  - `obsidian.linkList` / `obsidian_link_list`
+  - `obsidian.linkRemove` / `obsidian_link_remove`
+  - `obsidian.linkSetMode` / `obsidian_link_set_mode`
+  - `obsidian.syncNow` / `obsidian_sync_now`
+  - `obsidian.syncStatus` / `obsidian_sync_status`
+- New event stream contract:
+  - `obsidian_sync_progress` with phase/progress payload for linked-vault sync UI.
+
+### Changed
+- Search/AI conventions now document ADR-0019 embedding provider policy:
+  - `AISettings.embeddingProvider` = `same_as_model | openai | gemini | ollama | hash`
+  - fallback from unsupported provider embeddings to deterministic `hash`.
+
 ## [0.6.1] — 2026-02-21
 
 ### Changed

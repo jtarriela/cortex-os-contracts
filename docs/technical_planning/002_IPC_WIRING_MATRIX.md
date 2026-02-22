@@ -264,7 +264,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > | Tablet (md) | `640px – 1023px` | Week view with compressed column widths |
 > | Desktop (lg+) | `≥ 1024px` | Full week/month grid at design spec widths |
 
-### Integrations (Google Calendar)
+### Integrations (Google Calendar + Obsidian Linked Vault)
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
@@ -272,6 +272,12 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `integrations.googleCalendars` | List available calendars with metadata | — | `GoogleCalendarMetadata[]` (`id`, `summary`, `backgroundColor?`, `primary`) | Settings Integrations, Week planner filtering | `integrations_google_calendars` |
 | `integrations.triggerSync` | Trigger two-way sync manually and emit progress telemetry | — | `boolean` | Settings Integrations, background sync queue | `integrations_trigger_sync` |
 | `integrations.deleteMirroredEvent` | Delete mirrored Google source event and linked local mirror entities | `pageId` | `boolean` | Week planner mirrored-delete flow | `integrations_delete_mirrored_event` |
+| `obsidian.linkAdd` | Register an external Obsidian vault link (read-only v1) | `request: { root_path, mode: "read_only", include_paths?, exclude_paths? }` | `VaultLink` | Settings Integrations (Linked Obsidian Vault panel) | `obsidian_link_add` |
+| `obsidian.linkList` | List linked Obsidian vaults | — | `VaultLink[]` | Settings Integrations | `obsidian_link_list` |
+| `obsidian.linkRemove` | Remove a linked Obsidian vault | `request: { link_id }` | `void` | Settings Integrations | `obsidian_link_remove` |
+| `obsidian.linkSetMode` | Set linked vault mode (v1 remains read-only) | `request: { link_id, mode: "read_only" }` | `VaultLink` | Settings Integrations | `obsidian_link_set_mode` |
+| `obsidian.syncNow` | Trigger immediate linked-vault sync run | `request: { link_id }` | `SyncRun` | Settings Integrations sync controls | `obsidian_sync_now` |
+| `obsidian.syncStatus` | Read linked-vault sync status and recent jobs | `request: { link_id, limit? }` | `SyncStatus` | Settings Integrations status/progress panel | `obsidian_sync_status` |
 
 > **Integration settings payload updates:**
 >
@@ -281,6 +287,11 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - `mirrorMigrationV1Done: boolean` (one-time migration marker)
 >
 > Existing fields (`googleCalendarConnected`, `googleCalendarEmail`, `syncEnabled`) are unchanged.
+>
+> **Obsidian linked-vault responses (ADR-0019):**
+> - `VaultLink` includes: `linkId`, `provider`, `rootPath`, `mode`, `enabled`, `createdAt`, `updatedAt`, `lastScanAt?`, `lastError?`.
+> - `SyncRun` includes: `runId`, `linkId`, `status`, `startedAt`, `finishedAt?`, `phase`, `processed`, `total`, `error?`.
+> - `SyncStatus` includes: `link`, `activeRun?`, `recentRuns[]`, `queueCounts`.
 
 ### Search
 
@@ -301,8 +312,9 @@ Search commands are powered by:
 
 Embedding provider options:
 
-- hash embeddings (default deterministic fallback)
-- Ollama embeddings (`CORTEX_SEARCH_EMBED_PROVIDER=ollama`, optional local runtime)
+- `same_as_model` (default) resolves to the active model provider family where embedding support exists
+- explicit providers: `openai | gemini | ollama | hash`
+- fallback policy: if resolved provider embeddings are unavailable, backend falls back to `hash` and surfaces diagnostic status
 
 ### Quick Capture
 
@@ -328,6 +340,10 @@ Embedding provider options:
 | `review_reject` | Reject review item | `itemId` | `boolean` | Morning Review UI | `review_reject` |
 | `token_usage` | Query token/cost usage rollups | `days?` | `TokenUsageEntry[]` | Settings usage dashboard | `token_usage` |
 
+> **AI settings extension (ADR-0019):**
+> - `AISettings.embeddingProvider`: `same_as_model | openai | gemini | ollama | hash`
+> - `settings_get` / `settings_update` must preserve this field for frontend roundtrip behavior.
+
 ### Secret Storage (Phase 4)
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
@@ -346,6 +362,7 @@ Realtime frontend invalidation for Phase 3 uses Tauri event channels in addition
 | `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-update handlers (`page_update_props`, `page_update_body`, `habits_toggle`) |
 | `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | `vault_delete` |
 | `integrations_sync_progress` | Google Calendar sync lifecycle/progress updates | `phase`, `calendarId?`, `calendarName?`, `processed?`, `total?`, `message?` | Background sync status UX (WeekDashboard + Settings) | `integrations_trigger_sync` |
+| `obsidian_sync_progress` | Linked Obsidian vault sync lifecycle/progress updates | `phase`, `linkId`, `processed?`, `total?`, `message?`, `runId?`, `status?` | Settings linked-vault progress panel | linked-vault runtime + `obsidian_sync_now` |
 | `ai_stream_chunk` | Streamed AI text chunk | `requestId`, `text` | `services/aiService.ts` streaming updates in RightDrawer | `ai_chat` |
 | `ai_stream_done` | Stream completion metadata | `requestId`, `inputTokens`, `outputTokens`, `estimatedCostUsd` | `services/aiService.ts` completion handling | `ai_chat` |
 | `ai_stream_error` | Stream failure notification | `requestId`, `error`, `provider`, `code` | `services/aiService.ts` error/retry UX | `ai_chat` provider adapter failure path |

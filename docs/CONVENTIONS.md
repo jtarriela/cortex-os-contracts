@@ -202,3 +202,12 @@ Persistence and indexing are explicitly commit-driven.
 - `AISettings.ttsProvider`: `gemini | openai | local` (default: `gemini`)
 - `AISettings.preferredVoice` is provider-specific and must not be constrained to Gemini-only names.
 - `ai_transcribe` and `ai_synthesize` select transport behavior from these settings unless an explicit request override is introduced in a future contract revision.
+
+---
+
+## 12) Embedding Provider Settings (ADR-0019)
+
+- `AISettings.embeddingProvider`: `same_as_model | openai | gemini | ollama | hash`
+- default: `same_as_model`
+- `same_as_model` resolves to the active model provider family when embeddings are available.
+- if resolved provider embeddings are unavailable, retrieval falls back to `hash` and status is surfaced in diagnostics/progress.

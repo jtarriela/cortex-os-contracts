@@ -19,7 +19,7 @@ MAJOR.MINOR.PATCH
 | MINOR | New commands added, new optional fields added to existing commands |
 | PATCH | Documentation fixes, typo corrections, no contract changes |
 
-**Current version:** `0.6.1` (pre-release, all changes are considered non-breaking until 1.0)
+**Current version:** `0.7.0` (pre-release, all changes are considered non-breaking until 1.0)
 
 ---
 
@@ -44,6 +44,7 @@ MAJOR.MINOR.PATCH
 - Adding new enum values to a `select` type (clients must tolerate unknown values)
 
 Example (ADR-0018 E23): adding `calendar_get_range` / `calendar.getRange` is a **MINOR** contract change.
+Example (ADR-0019 V1): adding `obsidian_*` command surface and `AISettings.embeddingProvider` is a **MINOR** contract change.
 
 ### No Version Change (PATCH)
 
