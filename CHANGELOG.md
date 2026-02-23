@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.3] — 2026-02-23
+
+### Added
+- Travel v2 Stage 3 maps/routing/export contract surface:
+  - `travel.routeComputeLeg`
+  - `travel.routeComputeDay`
+  - `travel.exportGoogleMaps`
+  - `travel.resolveMapWaypoints`
+  - `travel.getMapsProviderStatus`
+  - `travel.getMapsJsConfig`
+
+### Changed
+- Travel routing/export docs now define explicit graceful fallback semantics for unsupported `travel.exportGoogleMaps.target = "saved_list_experimental"` responses (no silent failures).
+- Travel Stage 3 docs now record transit day-route stitching behavior and route-cache observability metadata expectations (`cache` / `cacheStats` response fields).
+- Travel v2 page-prop notes expanded for additive map/routing props (`map_lat`, `map_lng`, `map_query`, `map_formatted_address`, `google_place_id`, `map_resolved_at`, `map_resolution_source`, `route_exclude`).
+
 ## [0.10.2] — 2026-02-23
 
 ### Changed
