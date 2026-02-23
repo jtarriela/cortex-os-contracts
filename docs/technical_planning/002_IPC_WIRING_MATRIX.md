@@ -109,13 +109,13 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `finance.getAccounts` | List manual accounts | — | `ManualAccount[]` | Finance Accounts tab | `FinanceService::get_accounts` |
 | `finance.addAccount` | Add manual account | `name`, `type`, `balance` | `ManualAccount` | Finance "Add Account" | `FinanceService::add_account` |
-| `finance.getBudget` | Get budget months | `month?` | `YNABBudgetMonth[]` | Finance Budget tab (Recharts) | `FinanceService::get_budget` |
-| `finance.getSummary` | Get month rollup | `month?` | `FinanceSummary` | Finance drill-down metrics | `finance_get_summary` |
+| `finance.getBudget` | Get/create current manual budget month | — | `Page` (`kind="budget_month"`) | Finance manual budget template (current month planner) | `finance_get_budget` |
+| `finance.getSummary` | Get month rollup | `month?` | `FinanceSummary` | Finance manual analysis snapshot + drill-down metrics | `finance_get_summary` |
 | `finance.listTransactions` | List transactions | `month?` | `Transaction[]` | Finance Transactions tab | `FinanceService::list_transactions` |
 | `finance.importCsv` | Import CSV file | `filename`, `content` **or** `account_id`, `rows[]` | `Transaction[]` | Finance Import tab | `finance_import_csv` |
-| `finance.ynabStatus` | Read local YNAB connection/sync status | — | `FinanceYnabStatus` | Finance YNAB onboarding/status card | `finance_ynab_status` |
-| `finance.ynabConnectPat` | Save + validate YNAB Personal Access Token and cache budgets | `token`, `selectedBudgetId?` | `{ status: FinanceYnabStatus }` | Finance YNAB connect flow | `finance_ynab_connect_pat` |
-| `finance.ynabDisconnect` | Remove YNAB token and reset selected budget state (local synced data preserved) | — | `boolean` | Finance YNAB disconnect action | `finance_ynab_disconnect` |
+| `finance.ynabStatus` | Read local YNAB connection/sync status | — | `FinanceYnabStatus` | Settings Integrations (YNAB) + Finance YNAB gate/status card | `finance_ynab_status` |
+| `finance.ynabConnectPat` | Save + validate YNAB Personal Access Token and cache budgets | `token`, `selectedBudgetId?` | `{ status: FinanceYnabStatus }` | Settings Integrations YNAB connect form | `finance_ynab_connect_pat` |
+| `finance.ynabDisconnect` | Remove YNAB token and reset selected budget state (local synced data preserved) | — | `boolean` | Settings Integrations YNAB disconnect action | `finance_ynab_disconnect` |
 | `finance.ynabSync` | Full/delta YNAB view-only sync to local `ynab_*` pages + CSV mirror + analytics refresh | `budgetId?`, `mode?` (`auto\\|full\\|delta`), `writeCsv?`, `reanalyze?` | `FinanceYnabSyncResult` | Finance YNAB sync controls | `finance_ynab_sync` |
 | `finance.ynabGetTrackerConfig` | Read tracked-category analyzer config for selected or specified budget | `budgetId?` | `FinanceTrackedCategoryConfig` | Finance tracked categories manager | `finance_ynab_get_tracker_config` |
 | `finance.ynabSaveTrackerConfig` | Persist tracked-category analyzer config | `config { budgetId, categories[] }` | `FinanceTrackedCategoryConfig` | Finance tracked categories manager | `finance_ynab_save_tracker_config` |
