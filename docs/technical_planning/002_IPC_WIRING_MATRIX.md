@@ -123,6 +123,8 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `travel.importCommit` | Persist selected/edited Travel import candidates from preview and index created pages | `tripId`, `approvedCandidates[]`, `commitMode?` | `TravelImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Travel v2 Import tab (manual source commit) | `travel_import_commit` |
 | `travel.gmailScanPreview` | User-triggered Gmail reservation scan for a trip/date range (preview only; no writes) | `tripId`, `startDate`, `endDate`, `maxMessages?`, `queryOverride?`, `includeAlreadyImported?` | `TravelGmailScanPreviewResult` (`candidates[]`, `warnings[]`, `scanStats`, `messages[]`, `previewGeneratedAt`) | Travel v2 Import tab (Gmail scan preview) | `travel_gmail_scan_preview` |
 | `travel.gmailImportCommit` | Persist selected Gmail-derived reservation candidates as structured Travel entities | `tripId`, `approvedCandidates[]` | `TravelImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Travel v2 Import tab (Gmail candidate commit) | `travel_gmail_import_commit` |
+| `travel.aiSuggestIdeas` | Generate Travel planner inspiration ideas (preview-only; no writes) | `tripId`, `locationId?`, `dayDate?`, `prompt?`, `constraints?`, `maxSuggestions?` | `TravelAiSuggestIdeasResult` (`responseMode`, `suggestions[]`, `warnings[]`, `rationale?`, `contextSummary?`, `provider?`, `previewGeneratedAt`) | Travel v2 Planner tab (Inspire / Summarize actions) | `travel_ai_suggest_ideas` |
+| `travel.optimizeDayPlanPreview` | Generate a day itinerary optimization preview (reorder-first v1; preview-only; explicit apply via standard mutations) | `tripId`, `dayDate`, `itemIds?`, `strategy?`, `startTime?`, `endTime?`, `constraints?`, `includeRoutingMetrics?` | `TravelOptimizeDayPlanPreviewResult` (`responseMode`, `previewMode="reorder_first_v1"`, `basePlan`, `proposedPlan`, `changes[]` union, `applyGuard`, `warnings[]`, `constraintConflicts[]`, `rationale?`, `provider?`, `previewGeneratedAt`) | Travel v2 Planner tab (Optimize Day preview + explicit apply-all) | `travel_optimize_day_plan_preview` |
 | `travel.createCard` | **Legacy compatibility**: add unstructured travel card markdown note | `tripId`, `kind`, `title`, `props?` | `Note` | Legacy Travel cards UI / compatibility path | `travel_create_card` (`Travel/Trips/<slug>/<card-title-slug>.md` with collision suffixing) |
 | `travel.getItinerary` | **Legacy compatibility**: get trip + child `travel_card`s | `tripId` | `{ trip, cards[] }` | Legacy Travel itinerary detail | `travel_get_itinerary` |
 
@@ -148,6 +150,13 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - Gmail scan is user-triggered only (no background polling/watchers in Stage 4B).
 > - Stage 4B stores/indexes structured extracted reservation data and sanitized source metadata; raw Gmail message bodies/attachments are not stored or indexed by default.
 > - Gmail-derived imports should persist provenance metadata and trip-scoped dedupe keys where available.
+>
+> Stage 5 planner AI notes (ADR-0030):
+> - `travel.aiSuggestIdeas` and `travel.optimizeDayPlanPreview` are preview-only and must not persist pages or enqueue indexing jobs.
+> - Stage 5 introduces no `travel.aiApply*` mutation command; accepted suggestions are applied in the frontend via standard Travel mutation commands (v1 default: `travel.reorderItems` for reorder previews).
+> - `travel.optimizeDayPlanPreview` v1 is `reorder_first_v1`; applyable change rows are `changeType="reorder"` while informational-only rows use `changeType="note"` (`retime_deferred`, `constraint`, `missing_data`, `provider_degraded`).
+> - `travel.optimizeDayPlanPreview` returns `applyGuard` (`sourceOrderedItemIds`, `sourceItems[]`, `snapshotHash`) and frontend must block apply when the preview is stale.
+> - `travel.optimizeDayPlanPreview` may return `responseMode="degraded_deterministic"` when deterministic preview generation succeeds but AI rationale/enrichment fails; manual planning/routing remains available.
 
 ### Finance
 

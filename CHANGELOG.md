@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.5] — 2026-02-23
+
+### Added
+- Travel v2 Stage 5 planner AI contract surface:
+  - `travel.aiSuggestIdeas`
+  - `travel.optimizeDayPlanPreview`
+
+### Changed
+- Travel Stage 5 docs now define preview-only planner semantics with explicit frontend apply via standard Travel mutation commands (no `travel.aiApply*` command in v1).
+- `travel.optimizeDayPlanPreview` docs now define `reorder_first_v1` response semantics, typed `changes[]` union (`reorder` + informational `note` rows), stale-preview `applyGuard`, and `degraded_deterministic` rationale-fallback behavior.
+
 ## [0.10.4] — 2026-02-23
 
 ### Added
