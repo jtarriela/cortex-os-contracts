@@ -132,8 +132,10 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > Stage 3 maps/routing/export notes:
 > - `travel.routeComputeDay` preserves the caller-provided waypoint order; Stage 3 does not perform auto-optimization/reordering.
 > - `travel.routeComputeDay` transit mode computes adjacent legs and returns a stitched day-route response (`stitchedTransit = true`).
+> - When `travel.routeComputeDay` transit mode receives `departAt`, stitched legs are computed sequentially using chained estimated departure times (previous leg departure + previous leg duration).
 > - `travel.exportGoogleMaps` must return an explicit unsupported/fallback union response for unsupported `target = "saved_list_experimental"` requests.
 > - `travel.getMapsProviderStatus` returns key-presence/configuration booleans only; plaintext secret values are not returned.
+> - `travel.resolveMapWaypoints` may return `status = "ambiguous"` when geocoding returns multiple candidates; Stage 3 does not persist coordinates for ambiguous matches.
 > - Route and geocoding metadata are additive page props on `trip_location` / `trip_item` (`map_lat`, `map_lng`, `map_query`, `map_formatted_address`, `google_place_id`, `map_resolved_at`, `map_resolution_source`, `route_exclude`).
 
 ### Finance
