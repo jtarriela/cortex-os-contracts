@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.0] — 2026-02-22
+
+### Added
+- Linked-note write-back contract for Obsidian linked vaults:
+  - `obsidian.noteSave` / `obsidian_note_save`
+  - request shape: `{ page_id, base_hash, markdown }`
+  - response union: `LinkedNoteSaveResult`
+    - `saved`: `{ status: "saved", note, sourceHash }`
+    - `conflict`: `{ status: "conflict", serverMarkdown, serverHash, message }`
+
+### Changed
+- `VaultLink.mode` contract expanded from `read_only` to `read_only | read_write`.
+- `obsidian.linkAdd` and `obsidian.linkSetMode` now accept `mode: "read_only" | "read_write"`.
+- Linked-vault conflict policy documented as status-return semantics (no ad-hoc error envelope changes).
+
 ## [0.7.0] — 2026-02-22
 
 ### Added

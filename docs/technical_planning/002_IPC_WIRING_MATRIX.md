@@ -288,12 +288,13 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `integrations.googleCalendars` | List available calendars with metadata | — | `GoogleCalendarMetadata[]` (`id`, `summary`, `backgroundColor?`, `primary`) | Settings Integrations, Week planner filtering | `integrations_google_calendars` |
 | `integrations.triggerSync` | Trigger two-way sync manually and emit progress telemetry | — | `boolean` | Settings Integrations, background sync queue | `integrations_trigger_sync` |
 | `integrations.deleteMirroredEvent` | Delete mirrored Google source event and linked local mirror entities | `pageId` | `boolean` | Week planner mirrored-delete flow | `integrations_delete_mirrored_event` |
-| `obsidian.linkAdd` | Register an external Obsidian vault link (read-only v1) | `request: { root_path, mode: "read_only", include_paths?, exclude_paths? }` | `VaultLink` | Settings Integrations (Linked Obsidian Vault panel) | `obsidian_link_add` |
+| `obsidian.linkAdd` | Register an external Obsidian vault link | `request: { root_path, mode: "read_only"\|"read_write", include_paths?, exclude_paths? }` | `VaultLink` | Settings Integrations (Linked Obsidian Vault panel) | `obsidian_link_add` |
 | `obsidian.linkList` | List linked Obsidian vaults | — | `VaultLink[]` | Settings Integrations | `obsidian_link_list` |
 | `obsidian.linkRemove` | Remove a linked Obsidian vault | `request: { link_id }` | `void` | Settings Integrations | `obsidian_link_remove` |
-| `obsidian.linkSetMode` | Set linked vault mode (v1 remains read-only) | `request: { link_id, mode: "read_only" }` | `VaultLink` | Settings Integrations | `obsidian_link_set_mode` |
+| `obsidian.linkSetMode` | Set linked vault mode | `request: { link_id, mode: "read_only"\|"read_write" }` | `VaultLink` | Settings Integrations | `obsidian_link_set_mode` |
 | `obsidian.syncNow` | Trigger immediate linked-vault sync run | `request: { link_id }` | `SyncRun` | Settings Integrations sync controls | `obsidian_sync_now` |
 | `obsidian.syncStatus` | Read linked-vault sync status and recent jobs | `request: { link_id, limit? }` | `SyncStatus` | Settings Integrations status/progress panel | `obsidian_sync_status` |
+| `obsidian.noteSave` | Save a linked Obsidian note with optimistic concurrency and conflict return | `request: { page_id, base_hash, markdown }` | `LinkedNoteSaveResult` | Vault Workbench (source editor) | `obsidian_note_save` |
 
 > **Integration settings payload updates:**
 >
@@ -308,6 +309,14 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - `VaultLink` includes: `linkId`, `provider`, `rootPath`, `mode`, `enabled`, `createdAt`, `updatedAt`, `lastScanAt?`, `lastError?`.
 > - `SyncRun` includes: `runId`, `linkId`, `status`, `startedAt`, `finishedAt?`, `phase`, `processed`, `total`, `error?`.
 > - `SyncStatus` includes: `link`, `activeRun?`, `recentRuns[]`, `queueCounts`.
+> - `LinkedNoteSaveResult` uses status-tagged union:
+>   - `saved`: `{ status: "saved", note, sourceHash }`
+>   - `conflict`: `{ status: "conflict", serverMarkdown, serverHash, message }`
+>
+> **Linked note save conflict policy (read_write mode):**
+> - backend compares `request.base_hash` with current source-file hash.
+> - mismatch does not throw; response returns `status: "conflict"` with server payload.
+> - UI must present an explicit merge decision path (`use server` / `overwrite with my changes`).
 
 ### Search
 
