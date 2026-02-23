@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.9.0] — 2026-02-23
+
+### Added
+- Exact graph-link inspection contract for note inspector/backlinks UX:
+  - `search.graphLinks` / `search_graph_links`
+  - request shape: `{ pageId, direction?: "incoming" | "outgoing" | "both", limit? }`
+  - response: `GraphLinkResult[]` (direction-tagged edges with relation/weight + source/target ids)
+- Linked-note inspector metadata contract for Vault Workbench right drawer:
+  - `obsidian.noteInspect` / `obsidian_note_inspect`
+  - request shape: `{ page_id }`
+  - response: `LinkedNoteInspectorStatus | null` (null for non-linked notes)
+
+### Changed
+- IPC wiring matrix now distinguishes exact directed link inspection (`search.graphLinks`) from traversal-based neighborhood search (`search.graphNeighbors`).
+- Obsidian linked-vault contract section now documents note-level inspector metadata payloads (manifest/index/sync summaries) used by the Vault Workbench `Inspect` panel.
+
 ## [0.8.0] — 2026-02-22
 
 ### Added

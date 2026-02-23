@@ -295,6 +295,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `obsidian.syncNow` | Trigger immediate linked-vault sync run | `request: { link_id }` | `SyncRun` | Settings Integrations sync controls | `obsidian_sync_now` |
 | `obsidian.syncStatus` | Read linked-vault sync status and recent jobs | `request: { link_id, limit? }` | `SyncStatus` | Settings Integrations status/progress panel | `obsidian_sync_status` |
 | `obsidian.noteSave` | Save a linked Obsidian note with optimistic concurrency and conflict return | `request: { page_id, base_hash, markdown }` | `LinkedNoteSaveResult` | Vault Workbench (source editor) | `obsidian_note_save` |
+| `obsidian.noteInspect` | Inspect linked-note source/sync/index metadata for the Vault Workbench inspector | `request: { page_id }` | `LinkedNoteInspectorStatus \| null` | RightDrawer note `Inspect` tab (linked notes only) | `obsidian_note_inspect` |
 
 > **Integration settings payload updates:**
 >
@@ -317,6 +318,10 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - backend compares `request.base_hash` with current source-file hash.
 > - mismatch does not throw; response returns `status: "conflict"` with server payload.
 > - UI must present an explicit merge decision path (`use server` / `overwrite with my changes`).
+>
+> **Linked note inspector metadata (`obsidian.noteInspect`):**
+> - Returns `null` when the page is not a linked Obsidian note.
+> - `LinkedNoteInspectorStatus` includes link mode/root path + note source path/hash, plus optional `manifest`, `indexState`, and `syncSummary` objects for Vault Workbench diagnostics.
 
 ### Search
 
@@ -325,7 +330,12 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `search.global` | Search all content | `query`, `limit?` | `SearchResult[]` | CommandPalette, AI agent `searchBrain` | `SearchService::global` |
 | `search.semantic` | Vector-only semantic search | `query`, `limit?` | `SearchResult[]` | Future semantic tab / agent tools | `search_semantic` |
 | `search.graphNeighbors` | Traverse related pages by link distance | `pageId`, `depth?`, `limit?` | `SearchResult[]` | CommandPalette related graph badges | `search_graph_neighbors` |
+| `search.graphLinks` | Exact directed link inspection (incoming/outgoing/both) | `pageId`, `direction?`, `limit?` | `GraphLinkResult[]` | RightDrawer note inspector backlinks/outgoing diagnostics | `search_graph_links` |
 | `search.graphSuggestLinks` | Suggest unlinked related pages | `pageId`, `limit?` | `SearchResult[]` | Link suggestion workflows (Phase 4 prep) | `search_graph_suggest_links` |
+
+> **`GraphLinkResult` response shape (summary):**
+> `pageId`, `title`, `path`, `resultType`, `direction`, `relation`, `weight`, `sourcePageId`, `targetPageId`.
+> Use `search.graphLinks` for exact backlinks/outgoing links; use `search.graphNeighbors` for traversal/ranking UX.
 
 ## Phase 3 Page-Centric Notes
 
