@@ -119,6 +119,10 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `travel.exportGoogleMaps` | Export an ordered route/waypoint sequence to Google Maps targets with explicit graceful fallback | `tripId`, `target`, `waypointItemIds[]`, `dayDate?`, `mode?`, `exportName?` | `TravelGoogleExportResult` (union) | Travel v2 Map tab export panel | `travel_export_google_maps` |
 | `travel.getMapsProviderStatus` | Read Travel maps/routing provider configuration status (key presence only; no plaintext secrets) | — | `TravelMapsProviderStatus` | Settings → Integrations (Travel Google keys), Travel Map tab gating | `travel_get_maps_provider_status` |
 | `travel.getMapsJsConfig` | Read frontend-safe Google Maps JS loader config (Maps JS key + libraries) | — | `TravelMapsJsConfig` | Travel v2 embedded map loader | `travel_get_maps_js_config` |
+| `travel.importPreview` | Preview AI-assisted Travel import candidates from URL/text/screenshot sources (no writes) | `tripId`, `sources[]` (`kind = url \| text \| image_base64` + source payload fields), `options?` | `TravelImportPreviewResult` (`candidates[]`, `warnings[]`, `stats`, `provider`, `previewGeneratedAt`) | Travel v2 Import tab (manual source preview) | `travel_import_preview` |
+| `travel.importCommit` | Persist selected/edited Travel import candidates from preview and index created pages | `tripId`, `approvedCandidates[]`, `commitMode?` | `TravelImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Travel v2 Import tab (manual source commit) | `travel_import_commit` |
+| `travel.gmailScanPreview` | User-triggered Gmail reservation scan for a trip/date range (preview only; no writes) | `tripId`, `startDate`, `endDate`, `maxMessages?`, `queryOverride?`, `includeAlreadyImported?` | `TravelGmailScanPreviewResult` (`candidates[]`, `warnings[]`, `scanStats`, `messages[]`, `previewGeneratedAt`) | Travel v2 Import tab (Gmail scan preview) | `travel_gmail_scan_preview` |
+| `travel.gmailImportCommit` | Persist selected Gmail-derived reservation candidates as structured Travel entities | `tripId`, `approvedCandidates[]` | `TravelImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Travel v2 Import tab (Gmail candidate commit) | `travel_gmail_import_commit` |
 | `travel.createCard` | **Legacy compatibility**: add unstructured travel card markdown note | `tripId`, `kind`, `title`, `props?` | `Note` | Legacy Travel cards UI / compatibility path | `travel_create_card` (`Travel/Trips/<slug>/<card-title-slug>.md` with collision suffixing) |
 | `travel.getItinerary` | **Legacy compatibility**: get trip + child `travel_card`s | `tripId` | `{ trip, cards[] }` | Legacy Travel itinerary detail | `travel_get_itinerary` |
 
@@ -137,6 +141,13 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - `travel.getMapsProviderStatus` returns key-presence/configuration booleans only; plaintext secret values are not returned.
 > - `travel.resolveMapWaypoints` may return `status = "ambiguous"` when geocoding returns multiple candidates; Stage 3 does not persist coordinates for ambiguous matches.
 > - Route and geocoding metadata are additive page props on `trip_location` / `trip_item` (`map_lat`, `map_lng`, `map_query`, `map_formatted_address`, `google_place_id`, `map_resolved_at`, `map_resolution_source`, `route_exclude`).
+>
+> Stage 4 import notes (ADR-0028 / ADR-0029):
+> - `travel.importPreview` and `travel.gmailScanPreview` are preview-only and must not persist pages or enqueue indexing jobs.
+> - `travel.importCommit` and `travel.gmailImportCommit` must preserve Travel v2 indexing parity (same search/RAG visibility semantics as other travel writes).
+> - Gmail scan is user-triggered only (no background polling/watchers in Stage 4B).
+> - Stage 4B stores/indexes structured extracted reservation data and sanitized source metadata; raw Gmail message bodies/attachments are not stored or indexed by default.
+> - Gmail-derived imports should persist provenance metadata and trip-scoped dedupe keys where available.
 
 ### Finance
 
@@ -326,7 +337,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `integrations.googleAuth` | Authenticate with Google | — | `string` (auth URL) | Settings Integrations | `integrations_google_auth` (requires `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`) |
+| `integrations.googleAuth` | Authenticate with Google (calendar-only by default; optional Gmail scope upgrade for Travel) | `scopeProfile?` (`"calendar"` \| `"calendar_gmail"`, default `"calendar"`) | `string` (authorized account email) | Settings Integrations, Travel Gmail scope enable flow | `integrations_google_auth` (requires `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`) |
 | `integrations.googleCalendars` | List available calendars with metadata | — | `GoogleCalendarMetadata[]` (`id`, `summary`, `backgroundColor?`, `primary`) | Settings Integrations, Week planner filtering | `integrations_google_calendars` |
 | `integrations.triggerSync` | Trigger two-way sync manually and emit progress telemetry | — | `boolean` | Settings Integrations, background sync queue | `integrations_trigger_sync` |
 | `integrations.deleteMirroredEvent` | Delete mirrored Google source event and linked local mirror entities | `pageId` | `boolean` | Week planner mirrored-delete flow | `integrations_delete_mirrored_event` |
@@ -345,6 +356,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - `syncedCalendars: string[]` (calendar IDs/names selected for sync)
 > - `editableCalendars: string[]` (subset selected for writable task-mirror workflow)
 > - `mirrorMigrationV1Done: boolean` (one-time migration marker)
+> - `googleGmailConnected: boolean` (shared Google auth includes Gmail scope for Travel Stage 4B)
 >
 > Existing fields (`googleCalendarConnected`, `googleCalendarEmail`, `syncEnabled`) are unchanged.
 >

@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.4] — 2026-02-23
+
+### Added
+- Travel v2 Stage 4 import contract surface:
+  - `travel.importPreview`
+  - `travel.importCommit`
+  - `travel.gmailScanPreview`
+  - `travel.gmailImportCommit`
+
+### Changed
+- `integrations.googleAuth` docs now include additive optional `scopeProfile` (`calendar` default, `calendar_gmail` for Travel Gmail scope upgrade) while preserving backward compatibility.
+- `IntegrationSettings` docs now include `googleGmailConnected` to represent shared Google auth Gmail-scope availability for Travel Stage 4B.
+- Travel import docs now define preview-only no-write semantics (`travel.importPreview`, `travel.gmailScanPreview`) and structured-data-first Gmail storage/indexing policy (raw message bodies/attachments not stored or indexed by default).
+
 ## [0.10.3] — 2026-02-23
 
 ### Added
