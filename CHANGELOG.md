@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.0] — 2026-02-23
+
+### Added
+- Finance YNAB view-only integration contract surface:
+  - `finance.ynabStatus`
+  - `finance.ynabConnectPat`
+  - `finance.ynabDisconnect`
+  - `finance.ynabSync`
+  - `finance.ynabGetTrackerConfig`
+  - `finance.ynabSaveTrackerConfig`
+  - `finance.ynabGetAnalytics`
+
+### Changed
+- Finance contract docs refined to reflect the Settings-driven finance UX split (Manual vs YNAB):
+  - `finance.getBudget` is documented as the current manual `budget_month` page source used by the manual budget planner UI
+  - `finance.ynabStatus` / `finance.ynabConnectPat` / `finance.ynabDisconnect` frontend usage is now documented under Settings → Integrations (with Finance using status as a gate/redirect)
+- Finance contract docs distinguish manual finance commands from YNAB-backed local sync/analytics commands and document YNAB sync request fields (`budgetId`, `mode`, `writeCsv`, `reanalyze`).
+
 ## [0.9.0] — 2026-02-23
 
 ### Added
