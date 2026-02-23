@@ -113,6 +113,12 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `travel.deleteExpense` | Delete a trip expense entry | `expenseId` | `void` | Travel v2 Budget tab | `travel_delete_expense` |
 | `travel.getBudgetSummary` | Aggregate trip expenses into budget rollups | `tripId` | `TravelBudgetSummary` | Travel v2 Budget tab summary cards + breakdowns | `travel_get_budget_summary` |
 | `travel.legacyMigrateCards` | Convert legacy `travel_card` pages into `trip_item` pages (non-destructive, duplicate-safe by `legacy_card_id`) | `tripId`, `cardIds?` | `Page[]` (`trip_item`) | Travel v2 legacy migration actions | `travel_legacy_migrate_cards` |
+| `travel.resolveMapWaypoints` | Resolve and persist coordinates/address metadata for routeable travel locations/items (backend geocoding; explicit user action) | `tripId`, `entityRefs[]`, `overwriteExisting?` | `TravelWaypointResolveResult[]` | Travel v2 Map tab waypoint resolve flow | `travel_resolve_map_waypoints` |
+| `travel.routeComputeLeg` | Compute a single route leg between two coordinates using the active backend routing provider | `tripId`, `mode`, `from`, `to`, `departAt?`, `useCache?` | `TravelRouteLegResult` | Travel v2 route preview / diagnostics | `travel_route_compute_leg` |
+| `travel.routeComputeDay` | Compute an ordered day route across itinerary items (transit computed per-leg and stitched) | `tripId`, `dayDate`, `mode`, `waypointItemIds[]`, `departAt?`, `useCache?` | `TravelRouteDayResult` | Travel v2 Map tab route line + ETA totals | `travel_route_compute_day` |
+| `travel.exportGoogleMaps` | Export an ordered route/waypoint sequence to Google Maps targets with explicit graceful fallback | `tripId`, `target`, `waypointItemIds[]`, `dayDate?`, `mode?`, `exportName?` | `TravelGoogleExportResult` (union) | Travel v2 Map tab export panel | `travel_export_google_maps` |
+| `travel.getMapsProviderStatus` | Read Travel maps/routing provider configuration status (key presence only; no plaintext secrets) | — | `TravelMapsProviderStatus` | Settings → Integrations (Travel Google keys), Travel Map tab gating | `travel_get_maps_provider_status` |
+| `travel.getMapsJsConfig` | Read frontend-safe Google Maps JS loader config (Maps JS key + libraries) | — | `TravelMapsJsConfig` | Travel v2 embedded map loader | `travel_get_maps_js_config` |
 | `travel.createCard` | **Legacy compatibility**: add unstructured travel card markdown note | `tripId`, `kind`, `title`, `props?` | `Note` | Legacy Travel cards UI / compatibility path | `travel_create_card` (`Travel/Trips/<slug>/<card-title-slug>.md` with collision suffixing) |
 | `travel.getItinerary` | **Legacy compatibility**: get trip + child `travel_card`s | `tripId` | `{ trip, cards[] }` | Legacy Travel itinerary detail | `travel_get_itinerary` |
 
@@ -122,6 +128,13 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - `travel.moveItem` remains a metadata move (no filesystem relocation yet) but now supports `clearLocation?` to disambiguate clearing vs preserving `location_id`.
 > - `travel.createItem` for location-scoped items writes new files under a stable per-location folder subdir (hybrid path strategy) to avoid shared `Locations/Items/`.
 > - `travel.legacyMigrateCards` skips already migrated legacy cards by `legacy_card_id`.
+>
+> Stage 3 maps/routing/export notes:
+> - `travel.routeComputeDay` preserves the caller-provided waypoint order; Stage 3 does not perform auto-optimization/reordering.
+> - `travel.routeComputeDay` transit mode computes adjacent legs and returns a stitched day-route response (`stitchedTransit = true`).
+> - `travel.exportGoogleMaps` must return an explicit unsupported/fallback union response for unsupported `target = "saved_list_experimental"` requests.
+> - `travel.getMapsProviderStatus` returns key-presence/configuration booleans only; plaintext secret values are not returned.
+> - Route and geocoding metadata are additive page props on `trip_location` / `trip_item` (`map_lat`, `map_lng`, `map_query`, `map_formatted_address`, `google_place_id`, `map_resolved_at`, `map_resolution_source`, `route_exclude`).
 
 ### Finance
 
