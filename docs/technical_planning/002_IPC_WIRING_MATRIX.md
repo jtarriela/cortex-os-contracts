@@ -106,17 +106,22 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `travel.reorderLocations` | Persist ordered location indexes | `tripId`, `orderedLocationIds[]` | `Page[]` (`trip_location`) | Travel v2 location ordering | `travel_reorder_locations` |
 | `travel.createItem` | Create a structured trip item (place/activity/flight/lodging/etc.) | `tripId`, `locationId?`, `itemType`, `title`, `props?`, `body?` | `Page` (`kind="trip_item"`) | Travel v2 itinerary/logistics create flows | `travel_create_item` |
 | `travel.updateItem` | Update a structured trip item | `itemId`, `title?`, `props?`, `body?` | `Page` (`kind="trip_item"`) | Travel v2 item editor | `travel_update_item` |
-| `travel.moveItem` | Move a trip item across location/day/order (metadata move in current impl) | `itemId`, `targetLocationId?`, `targetDayDate?`, `targetOrderIndex?` | `Page` (`kind="trip_item"`) | Travel v2 itinerary adjustments | `travel_move_item` |
+| `travel.moveItem` | Move a trip item across location/day/order (metadata move only; validates target location kind + trip ownership) | `itemId`, `targetLocationId?`, `clearLocation?`, `targetDayDate?`, `targetOrderIndex?` | `Page` (`kind="trip_item"`) | Travel v2 itinerary adjustments | `travel_move_item` |
 | `travel.reorderItems` | Persist ordered item indexes | `tripId`, `orderedItemIds[]` | `Page[]` (`trip_item`) | Travel v2 itinerary ordering | `travel_reorder_items` |
 | `travel.createExpense` | Create a trip expense entry | `tripId`, `title`, `props?`, `body?` | `Page` (`kind="trip_expense"`) | Travel v2 Budget tab | `travel_create_expense` |
 | `travel.updateExpense` | Update a trip expense entry | `expenseId`, `title?`, `props?`, `body?` | `Page` (`kind="trip_expense"`) | Travel v2 Budget tab | `travel_update_expense` |
 | `travel.deleteExpense` | Delete a trip expense entry | `expenseId` | `void` | Travel v2 Budget tab | `travel_delete_expense` |
 | `travel.getBudgetSummary` | Aggregate trip expenses into budget rollups | `tripId` | `TravelBudgetSummary` | Travel v2 Budget tab summary cards + breakdowns | `travel_get_budget_summary` |
-| `travel.legacyMigrateCards` | Convert legacy `travel_card` pages into `trip_item` pages (non-destructive) | `tripId`, `cardIds?` | `Page[]` (`trip_item`) | Travel v2 legacy migration actions | `travel_legacy_migrate_cards` |
+| `travel.legacyMigrateCards` | Convert legacy `travel_card` pages into `trip_item` pages (non-destructive, duplicate-safe by `legacy_card_id`) | `tripId`, `cardIds?` | `Page[]` (`trip_item`) | Travel v2 legacy migration actions | `travel_legacy_migrate_cards` |
 | `travel.createCard` | **Legacy compatibility**: add unstructured travel card markdown note | `tripId`, `kind`, `title`, `props?` | `Note` | Legacy Travel cards UI / compatibility path | `travel_create_card` (`Travel/Trips/<slug>/<card-title-slug>.md` with collision suffixing) |
 | `travel.getItinerary` | **Legacy compatibility**: get trip + child `travel_card`s | `tripId` | `{ trip, cards[] }` | Legacy Travel itinerary detail | `travel_get_itinerary` |
 
 > Travel v2 Stage 1-2 (structured locations/items/expenses) is additive. Legacy `travel_card` commands remain available during migration and are surfaced in the v2 workspace as a dual-read compatibility path.
+>
+> Stage 1-2 integrity patch notes:
+> - `travel.moveItem` remains a metadata move (no filesystem relocation yet) but now supports `clearLocation?` to disambiguate clearing vs preserving `location_id`.
+> - `travel.createItem` for location-scoped items writes new files under a stable per-location folder subdir (hybrid path strategy) to avoid shared `Locations/Items/`.
+> - `travel.legacyMigrateCards` skips already migrated legacy cards by `legacy_card_id`.
 
 ### Finance
 

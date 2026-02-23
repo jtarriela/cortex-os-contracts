@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.2] — 2026-02-23
+
+### Changed
+- Travel v2 Stage 1-2 integrity patch updates:
+  - `travel.moveItem` adds optional `clearLocation` to explicitly clear `location_id` without overloading omitted/null semantics
+  - backend now validates target location kind/trip ownership for travel item create/move operations
+  - legacy migration skips duplicates using `legacy_card_id`
+
+### Notes
+- `travel.moveItem` remains metadata-only in Stage 1-2 (filesystem relocation deferred)
+- New location-scoped item creates use a stable per-location folder subdir (hybrid path strategy; no mass migration)
+
 ## [0.10.1] — 2026-02-23
 
 ### Added
