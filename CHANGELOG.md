@@ -5,6 +5,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.1] — 2026-02-23
+
+### Added
+- Travel v2 Stage 1-2 structured planning contract surface:
+  - `travel.getWorkspace`
+  - `travel.createLocation`
+  - `travel.updateLocation`
+  - `travel.reorderLocations`
+  - `travel.createItem`
+  - `travel.updateItem`
+  - `travel.moveItem`
+  - `travel.reorderItems`
+  - `travel.createExpense`
+  - `travel.updateExpense`
+  - `travel.deleteExpense`
+  - `travel.getBudgetSummary`
+  - `travel.legacyMigrateCards`
+
+### Changed
+- Travel contract docs now document the dual-read migration model for Travel v2:
+  - legacy `travel.createCard` / `travel.getItinerary` remain supported as compatibility commands
+  - Travel v2 workspace hydration uses `travel.getWorkspace` for structured `trip_location` / `trip_item` / `trip_expense` projections
+
 ## [0.10.0] — 2026-02-23
 
 ### Added
