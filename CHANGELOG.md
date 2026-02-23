@@ -204,6 +204,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `finance.getSummary`
   - `travel.getItinerary`
   - `meals.getNutritionSummary`
+- ADR-0032 Habits Weekly Review calendar-sync contract:
+  - `habits.syncWeekPlan` / `habits_sync_week_plan`
+  - request shape: `{ reviewId }`
+  - response: `HabitWeekSyncResult` (`created`, `updated`, `deleted`, `skipped`, `eventIds[]`)
 
 ### Changed
 - `tasks.create` / `tasks.list` / `tasks.update` — `status` enum now explicitly includes `BLOCKED` (ADR-0008)
@@ -213,6 +217,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `travel.createCard` request now uses `trip_id`, `kind`, `title`, `props?`
 - `habits.toggle` request key updated to `page_id`
 - `finance.importCsv` now supports either `{ filename, content }` or `{ account_id, rows[] }` and returns created transactions
+- `habits.toggle` now documents optional `completionType` (`standard|mvh`) with same-day mutual exclusivity semantics across `completed_dates` and `mvh_dates` (ADR-0032).
+- `habits.getSummary` now documents split `STANDARD`/`MVH` metrics while preserving legacy combined totals (`completions`, `windowCompletions`) for compatibility.
+- `calendar.rescheduleEvent` / `calendar.deleteEvent` now document linked habit-generated event write-back semantics for ADR-0032 Weekly Review plan sync.
 
 ### Deprecated (bridge commands per ADR-0007)
 - `schedule.getToday` — superseded by `calendar.getToday`; bridge mapping table updated with strikethrough
