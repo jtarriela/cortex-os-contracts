@@ -125,6 +125,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `travel.gmailImportCommit` | Persist selected Gmail-derived reservation candidates as structured Travel entities | `tripId`, `approvedCandidates[]` | `TravelImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Travel v2 Import tab (Gmail candidate commit) | `travel_gmail_import_commit` |
 | `travel.aiSuggestIdeas` | Generate Travel planner inspiration ideas (preview-only; no writes) | `tripId`, `locationId?`, `dayDate?`, `prompt?`, `constraints?`, `maxSuggestions?` | `TravelAiSuggestIdeasResult` (`responseMode`, `suggestions[]`, `warnings[]`, `rationale?`, `contextSummary?`, `provider?`, `previewGeneratedAt`) | Travel v2 Planner tab (Inspire / Summarize actions) | `travel_ai_suggest_ideas` |
 | `travel.optimizeDayPlanPreview` | Generate a day itinerary optimization preview (reorder-first v1; preview-only; explicit apply via standard mutations) | `tripId`, `dayDate`, `itemIds?`, `strategy?`, `startTime?`, `endTime?`, `constraints?`, `includeRoutingMetrics?` | `TravelOptimizeDayPlanPreviewResult` (`responseMode`, `previewMode="reorder_first_v1"`, `basePlan`, `proposedPlan`, `changes[]` union, `applyGuard`, `warnings[]`, `constraintConflicts[]`, `rationale?`, `provider?`, `previewGeneratedAt`) | Travel v2 Planner tab (Optimize Day preview + explicit apply-all) | `travel_optimize_day_plan_preview` |
+| `travel.pushItemsToCalendar` | One-way Travel -> Calendar projection for itinerary items (idempotent batch push of local `calendar_event` pages; no reverse sync) | `tripId`, `dayDate?`, `itemIds[]?`, `overwriteExisting?`, `syncExternal?` | `TravelCalendarPushResult` (`created`, `updated`, `skipped`, `errors`, `results[]`, `warnings[]`) | Travel v2 Calendar tab (day push + re-push status) | `travel_push_items_to_calendar` |
 | `travel.createCard` | **Legacy compatibility**: add unstructured travel card markdown note | `tripId`, `kind`, `title`, `props?` | `Note` | Legacy Travel cards UI / compatibility path | `travel_create_card` (`Travel/Trips/<slug>/<card-title-slug>.md` with collision suffixing) |
 | `travel.getItinerary` | **Legacy compatibility**: get trip + child `travel_card`s | `tripId` | `{ trip, cards[] }` | Legacy Travel itinerary detail | `travel_get_itinerary` |
 
@@ -157,6 +158,20 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - `travel.optimizeDayPlanPreview` v1 is `reorder_first_v1`; applyable change rows are `changeType="reorder"` while informational-only rows use `changeType="note"` (`retime_deferred`, `constraint`, `missing_data`, `provider_degraded`).
 > - `travel.optimizeDayPlanPreview` returns `applyGuard` (`sourceOrderedItemIds`, `sourceItems[]`, `snapshotHash`) and frontend must block apply when the preview is stale.
 > - `travel.optimizeDayPlanPreview` may return `responseMode="degraded_deterministic"` when deterministic preview generation succeeds but AI rationale/enrichment fails; manual planning/routing remains available.
+>
+> Stage 6 calendar push notes (ADR-0031):
+> - `travel.pushItemsToCalendar` is a one-way projection from Travel itinerary items to local `calendar_event` pages. Calendar edits do not write back to Travel in v1.
+> - Selection validation: callers must provide `dayDate` or a non-empty `itemIds[]`. If both are provided, backend applies the intersection.
+> - Re-push behavior is idempotent:
+>   - `overwriteExisting=false` skips already-linked items
+>   - `overwriteExisting=true` updates only Travel-managed event fields and preserves user-owned fields (`description`, `location`, `linked_note_id`, `color`, body, and existing Google linkage props)
+> - Travel item linkage is stored on `trip_item.props.calendar_event_id`.
+> - Travel-generated calendar event metadata is additive on `calendar_event` pages: `travel_generated`, `travel_trip_id`, `travel_item_id`, `travel_item_type`, `travel_day_date`.
+> - Travel-generated events are Cortex-managed local events (`source="cortex"`, `read_only=false`); `syncExternal` is optional and controls outbound mirror eligibility.
+> - Request examples:
+>   - day push: `{ tripId, dayDate }`
+>   - selected push: `{ tripId, itemIds: ["item-1","item-2"] }`
+>   - re-push overwrite: `{ tripId, dayDate, overwriteExisting: true }`
 
 ### Finance
 

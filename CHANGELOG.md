@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.6] — 2026-02-24
+
+### Added
+- Travel v2 Stage 6 calendar push contract surface:
+  - `travel.pushItemsToCalendar`
+
+### Changed
+- Travel Stage 6 docs now define one-way Travel -> Calendar projection semantics (no reverse sync in v1), idempotent re-push behavior (`overwriteExisting`), and structured batch result reporting (`created`/`updated`/`skipped`/`errors` + row statuses).
+- Travel docs now record additive linkage props for Stage 6 calendar projection (`trip_item.calendar_event_id`, `calendar_event.travel_*` metadata) and optional `syncExternal` outbound-mirror intent for Travel-generated local events.
+
 ## [0.10.5] — 2026-02-23
 
 ### Added
