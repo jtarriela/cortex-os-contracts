@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.8] — 2026-02-24
+
+### Added
+- AI class planning + review apply contract surface:
+  - `ai_class_project_plan_preview`
+  - `review_apply`
+
+### Changed
+- `ai_chat` tool-result docs now include typed UI-action variants:
+  - `request_scope_selection`
+  - `open_review_item`
+  - `context_used`
+- `ReviewQueueItem` docs now include additive optional apply lifecycle metadata:
+  - `applyStatus`
+  - `appliedAt`
+  - `applyError`
+  - `resultJson`
+- AI docs now define folder-scoped source selection semantics for class planning, including scoped linked Obsidian inclusion (`include_sources`, `obsidian_link_ids`) and compatibility-safe additive response fields.
+
 ## [0.10.7] — 2026-02-24
 
 ### Changed

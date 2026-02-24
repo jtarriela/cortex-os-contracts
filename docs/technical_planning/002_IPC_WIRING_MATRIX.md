@@ -444,6 +444,7 @@ Embedding provider options:
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `ai_get_models` | List available models | — | `AIModel[]` | Settings model picker, RightDrawer model selector | `ai_get_models` |
 | `ai_chat` | Send chat message and emit stream events | `request: { history, message, model_id?, enable_agent? }` | `ChatResponse { text, tool_results[], request_id }` | RightDrawer AI panel | `ai_chat` |
+| `ai_class_project_plan_preview` | Build a class-doc scoped project plan draft and queue it for Morning Review | `request: { source_scope, source_scope_label?, prompt, deadline_policy?, max_tasks? }` where `source_scope` is `{ type: "page_ids", page_ids[] }` or `{ type: "folder", folder_path, include_sources[], obsidian_link_ids? }` | `{ request_id, review_item_id, response_mode, draft, warnings[], retrieval }` | RightDrawer class-plan flow after folder selection | `ai_class_project_plan_preview` |
 | `ai_summarize` | Summarize note content | `request: { title, body }` | `string` | Note summary panel | `ai_summarize` |
 | `ai_generate_image` | Generate image artifact | `request: { prompt }` | `string` (data URI) | Project artifact generation | `ai_generate_image` |
 | `ai_transcribe` | Transcribe audio using selected STT provider | `request: { audio_base64, tier?, mime_type? }` | `string` | Voice input transcription | `ai_transcribe` (`sttProvider`: `local_whisper\|openai\|gemini`, current default `gemini`) |
@@ -453,12 +454,21 @@ Embedding provider options:
 | `ai_suggest_links` | Suggest related pages from embeddings+graph | `request: { page_id, limit? }` | `Page[]` | Note linking workflows | `ai_suggest_links` |
 | `review_list` | List Morning Review items | `status?` (`pending|approved|rejected`) | `ReviewQueueItem[]` | Morning Review UI | `review_list` |
 | `review_approve` | Approve review item | `itemId`, `editedJson?` | `boolean` | Morning Review UI | `review_approve` |
+| `review_apply` | Execute approved Morning Review item (idempotent) | `itemId` | `{ applied, itemId, itemType, created?, warnings[] }` | Morning Review “Approve & Apply” flow | `review_apply` |
 | `review_reject` | Reject review item | `itemId` | `boolean` | Morning Review UI | `review_reject` |
 | `token_usage` | Query token/cost usage rollups | `days?` | `TokenUsageEntry[]` | Settings usage dashboard | `token_usage` |
 
 > **AI settings extension (ADR-0019):**
 > - `AISettings.embeddingProvider`: `same_as_model | openai | gemini | ollama | hash`
 > - `settings_get` / `settings_update` must preserve this field for frontend roundtrip behavior.
+>
+> **AI chat typed `tool_results` (V1.1):**
+> - `request_scope_selection`: `{ type: "request_scope_selection", scopeKind: "class_folder", pendingAction: "class_project_plan_create", prompt }`
+> - `open_review_item`: `{ type: "open_review_item", itemId }`
+> - `context_used`: `{ type: "context_used", domain: "finance" | "schedule", window, sources[] }`
+>
+> **`ReviewQueueItem` additive fields (backward compatible):**
+> - Optional: `applyStatus`, `appliedAt`, `applyError`, `resultJson`
 
 ### Secret Storage (Phase 4)
 
