@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.7] — 2026-02-24
+
+### Changed
+- Travel Stage 1-2 docs now define stricter backend validation semantics for `travel.createItem` / `travel.updateItem` (date/time formats, `start_time < end_time`, positive `order_index`, non-empty `item_type`, and optional flight/lodging field format validation when present).
+- Travel Stage 1-2 docs now define stricter backend validation semantics for `travel.createExpense` / `travel.updateExpense` (finite non-negative `amount`, optional `date`/`currency` format checks, and same-trip ownership validation for linked `location_id` / `item_id`).
+- `travel.pushItemsToCalendar` frontend-usage notes now explicitly document selected-item push UX (existing `itemIds[]` contract support; no command-surface change).
+
 ## [0.10.6] — 2026-02-24
 
 ### Added
