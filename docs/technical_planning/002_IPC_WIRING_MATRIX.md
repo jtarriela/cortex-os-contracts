@@ -373,7 +373,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `obsidian.linkRemove` | Remove a linked Obsidian vault | `request: { link_id }` | `void` | Settings Integrations | `obsidian_link_remove` |
 | `obsidian.linkSetMode` | Set linked vault mode | `request: { link_id, mode: "read_only"\|"read_write" }` | `VaultLink` | Settings Integrations | `obsidian_link_set_mode` |
 | `obsidian.syncNow` | Trigger immediate linked-vault sync run | `request: { link_id }` | `SyncRun` | Settings Integrations sync controls | `obsidian_sync_now` |
-| `obsidian.syncStatus` | Read linked-vault sync status and recent jobs | `request: { link_id, limit? }` | `SyncStatus` | Settings Integrations status/progress panel | `obsidian_sync_status` |
+| `obsidian.syncStatus` | Read linked-vault sync status, recent runs, queue counts, and recent failed files for a link | `request: { link_id, limit? }` | `SyncStatus` (`failedFiles?` additive list of per-file failures scoped to the link) | Settings Integrations status/progress panel | `obsidian_sync_status` |
 | `obsidian.noteSave` | Save a linked Obsidian note with optimistic concurrency and conflict return | `request: { page_id, base_hash, markdown }` | `LinkedNoteSaveResult` | Vault Workbench (source editor) | `obsidian_note_save` |
 | `obsidian.noteInspect` | Inspect linked-note source/sync/index metadata for the Vault Workbench inspector | `request: { page_id }` | `LinkedNoteInspectorStatus \| null` | RightDrawer note `Inspect` tab (linked notes only) | `obsidian_note_inspect` |
 
