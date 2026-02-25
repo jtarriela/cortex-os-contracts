@@ -384,6 +384,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 > - `editableCalendars: string[]` (subset selected for writable task-mirror workflow)
 > - `mirrorMigrationV1Done: boolean` (one-time migration marker)
 > - `googleGmailConnected: boolean` (shared Google auth includes Gmail scope for Travel Stage 4B)
+> - `financeMode?: "MANUAL" | "YNAB"` (persists Finance module mode selection across restarts)
 >
 > Existing fields (`googleCalendarConnected`, `googleCalendarEmail`, `syncEnabled`) are unchanged.
 >
@@ -460,6 +461,7 @@ Embedding provider options:
 
 > **AI settings extension (ADR-0019):**
 > - `AISettings.embeddingProvider`: `same_as_model | openai | gemini | ollama | hash`
+> - `AISettings.retrievalExcludePaths: string[]` (vault-relative path prefixes ignored only for AI retrieval; does not affect normal vault search)
 > - `settings_get` / `settings_update` must preserve this field for frontend roundtrip behavior.
 >
 > **AI chat typed `tool_results` (V1.1):**
