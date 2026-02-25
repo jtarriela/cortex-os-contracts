@@ -465,7 +465,8 @@ Embedding provider options:
 > **AI chat typed `tool_results` (V1.1):**
 > - `request_scope_selection`: `{ type: "request_scope_selection", scopeKind: "class_folder", pendingAction: "class_project_plan_create", prompt }`
 > - `open_review_item`: `{ type: "open_review_item", itemId }`
-> - `context_used`: `{ type: "context_used", domain: "finance" | "schedule", window, sources[] }`
+> - `context_used`: `{ type: "context_used", domain: "finance" | "schedule" | "rag" | "travel" | "habits", window, sources[] }`
+>   - `rag` uses lexical vault search (`sources: ["pages_fts"]`) in `ai_chat` provider routing.
 >
 > **`ReviewQueueItem` additive fields (backward compatible):**
 > - Optional: `applyStatus`, `appliedAt`, `applyError`, `resultJson`
