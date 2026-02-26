@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.9] — 2026-02-25
+
+### Added
+- Vault markdown metadata parity maintenance contract surface:
+  - `vault_markdown_metadata_audit`
+  - `vault_markdown_metadata_repair`
+- Vault workbench native open helper:
+  - `vault_open_in_native_editor`
+
+### Changed
+- Vault docs now define Cortex-managed markdown frontmatter parity expectations (user-visible metadata), explicit audit/repair semantics, and linked Obsidian exclusion from canonical rewrite.
+
 ## [0.10.8] — 2026-02-24
 
 ### Added

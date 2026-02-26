@@ -83,7 +83,10 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `vault_create` | Create/activate vault profile + starter structure | `request: { root_path, name? }` | `VaultProfile` | Vault Setup splash | `vault_create` |
 | `vault_select` | Validate/select an existing vault profile | `request: { root_path }` | `VaultProfile` | Vault Setup splash | `vault_select` |
 | `save_commit` | Persist note body and enqueue post-commit indexing | `request: { page_id, body }` | `Page` | Notes editor autosave/flush | `save_commit` |
+| `vault_open_in_native_editor` | Open a note's backing markdown in the OS default app/editor | `page_id` | `void` | Vault Workbench file-tree context menu | `vault_open_in_native_editor` |
 | `index_queue_status` | Read indexing queue state for diagnostics/progress | `limit?` | `IndexQueueJob[]` | Debug/progress UI | `index_queue_status` |
+| `vault_markdown_metadata_audit` | Audit Cortex-managed markdown files for canonical frontmatter parity | `request?: { kinds?, include_external_mirrors?, limit? }` | `VaultMarkdownMetadataAuditResult` | Vault maintenance / diagnostics (Settings → Integrations) | `vault_markdown_metadata_audit` |
+| `vault_markdown_metadata_repair` | Rewrite Cortex-managed markdown files to canonical frontmatter + body (skip linked Obsidian) | `request?: { page_ids?, kinds?, include_external_mirrors?, force_conflicts?, limit? }` | `VaultMarkdownMetadataRepairResult` | Vault maintenance / explicit repair action (Settings → Integrations) | `vault_markdown_metadata_repair` |
 
 ### Canonical Page Mutations (Phase 5 alignment)
 
@@ -91,8 +94,11 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 |---------|-------------|----------------|----------------|-------|
 | `vault_create_page` | Create a page in EAV + vault markdown | `kind`, `props`, `body?` | `Page` | `props.title` is canonical title input. Optional top-level `title` is compatibility-only and not required by FE/contracts payloads. |
 | `page_update_body` | Update page markdown body | `page_id`, `body` | `Page` | Persists DB body and rewrites markdown file under active vault root. |
-| `save_commit` | Durable save+index operation | `request: { page_id, body }` | `Page` | Persists markdown first, then enqueues/coalesces indexing jobs. |
+| `save_commit` | Durable save+index operation | `request: { page_id, body }` | `Page` | Persists DB body, rewrites canonical markdown for Cortex-managed pages, then enqueues/coalesces indexing jobs. |
 | `vault_delete` | Delete page and markdown | `page_id` | `void` | Deletes the corresponding markdown file path before DB removal. |
+| `vault_open_in_native_editor` | Open backing markdown path in OS app | `page_id` | `void` | Resolves Cortex vault files or linked Obsidian source files without mutation. |
+| `vault_markdown_metadata_audit` | Audit markdown parity vs DB page state | `request?` | `VaultMarkdownMetadataAuditResult` | Additive diagnostics command; reports missing frontmatter/missing files/conflicts. |
+| `vault_markdown_metadata_repair` | Explicit markdown parity repair | `request?` | `VaultMarkdownMetadataRepairResult` | Additive maintenance command; rewrites canonical frontmatter for eligible Cortex pages. |
 
 ### Travel
 
