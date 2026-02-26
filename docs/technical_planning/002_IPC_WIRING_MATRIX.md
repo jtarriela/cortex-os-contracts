@@ -420,6 +420,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `search.graphNeighbors` | Traverse related pages by link distance | `pageId`, `depth?`, `limit?` | `SearchResult[]` | CommandPalette related graph badges | `search_graph_neighbors` |
 | `search.graphLinks` | Exact directed link inspection (incoming/outgoing/both) | `pageId`, `direction?`, `limit?` | `GraphLinkResult[]` | RightDrawer note inspector backlinks/outgoing diagnostics | `search_graph_links` |
 | `search.graphSuggestLinks` | Suggest unlinked related pages | `pageId`, `limit?` | `SearchResult[]` | Link suggestion workflows (Phase 4 prep) | `search_graph_suggest_links` |
+| `search.rebuildIndexes` | Rebuild/repair FTS/vector/link search indexes (manual recovery) | — | `boolean` | Settings → Linked Obsidian Vault repair action | `search_rebuild_indexes` |
 
 > **`GraphLinkResult` response shape (summary):**
 > `pageId`, `title`, `path`, `resultType`, `direction`, `relation`, `weight`, `sourcePageId`, `targetPageId`.
@@ -450,7 +451,7 @@ Embedding provider options:
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `ai_get_models` | List available models | — | `AIModel[]` | Settings model picker, RightDrawer model selector | `ai_get_models` |
-| `ai_chat` | Send chat message and emit stream events | `request: { history, message, model_id?, enable_agent? }` | `ChatResponse { text, tool_results[], request_id }` | RightDrawer AI panel | `ai_chat` |
+| `ai_chat` | Send chat message and emit stream events | `request: { history, message, model_id?, enable_agent?, response_options? }` where `response_options = { verbosity?, word_cap?, grounding_mode? }` and `verbosity = "brief" \| "standard" \| "evidence_heavy"`, `grounding_mode = "auto" \| "inspect"` | `ChatResponse { text, tool_results[], request_id }` | RightDrawer AI panel | `ai_chat` |
 | `ai_class_project_plan_preview` | Build a class-doc scoped project plan draft and queue it for Morning Review | `request: { source_scope, source_scope_label?, prompt, deadline_policy?, max_tasks? }` where `source_scope` is `{ type: "page_ids", page_ids[] }` or `{ type: "folder", folder_path, include_sources[], obsidian_link_ids? }` | `{ request_id, review_item_id, response_mode, draft, warnings[], retrieval }` | RightDrawer class-plan flow after folder selection | `ai_class_project_plan_preview` |
 | `ai_summarize` | Summarize note content | `request: { title, body }` | `string` | Note summary panel | `ai_summarize` |
 | `ai_generate_image` | Generate image artifact | `request: { prompt }` | `string` (data URI) | Project artifact generation | `ai_generate_image` |
@@ -468,13 +469,17 @@ Embedding provider options:
 > **AI settings extension (ADR-0019):**
 > - `AISettings.embeddingProvider`: `same_as_model | openai | gemini | ollama | hash`
 > - `AISettings.retrievalExcludePaths: string[]` (vault-relative path prefixes ignored only for AI retrieval; does not affect normal vault search)
-> - `settings_get` / `settings_update` must preserve this field for frontend roundtrip behavior.
+> - `AISettings.chatVerbosityDefault`: `brief | standard | evidence_heavy`
+> - `AISettings.chatWordCapDefault: number` (backend clamps to safe range; current default `1500`)
+> - `AISettings.chatGroundingModeDefault`: `auto | inspect`
+> - `settings_get` / `settings_update` must preserve these fields for frontend roundtrip behavior.
 >
 > **AI chat typed `tool_results` (V1.1):**
 > - `request_scope_selection`: `{ type: "request_scope_selection", scopeKind: "class_folder", pendingAction: "class_project_plan_create", prompt }`
 > - `open_review_item`: `{ type: "open_review_item", itemId }`
 > - `context_used`: `{ type: "context_used", domain: "finance" | "schedule" | "rag" | "travel" | "habits", window, sources[] }`
 >   - `rag` uses lexical vault search (`sources: ["pages_fts"]`) in `ai_chat` provider routing.
+> - `diagnostic`: `{ type: "diagnostic", message, severity?, code? }` (non-fatal retrieval/provider warnings surfaced to chat UI)
 >
 > **`ReviewQueueItem` additive fields (backward compatible):**
 > - Optional: `applyStatus`, `appliedAt`, `applyError`, `resultJson`
