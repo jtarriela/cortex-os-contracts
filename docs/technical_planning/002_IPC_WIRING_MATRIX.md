@@ -458,7 +458,9 @@ Embedding provider options:
 | `ai_transcribe` | Transcribe audio using selected STT provider | `request: { audio_base64, tier?, mime_type? }` | `string` | Voice input transcription | `ai_transcribe` (`sttProvider`: `local_whisper\|openai\|gemini`, current default `gemini`) |
 | `ai_synthesize` | Text to speech using selected TTS provider | `request: { text, voice? }` | `string` (base64 WAV) | Chat auto-speak | `ai_synthesize` (`ttsProvider`: `gemini\|openai\|local`) |
 | `ai_validate_key` | Validate provider credential/endpoint format | `request: { provider, key }` | `boolean` | Settings provider verification | `ai_validate_key` |
-| `ai_rag_query` | Retrieval-augmented query over vault/search index | `request: { query, limit? }` | `AIRagResult { request_id, answer, context[] }` | AI assistant context mode | `ai_rag_query` |
+| `ai_rag_query` | Retrieval-augmented query over vault/search index | `request: { query, limit? }` | `AIRagResult { request_id, answer, context[], retrieval_mode, query_type, citations[] }` where `citations[] = { page_id, source_path, segment_id, label, start_char?, end_char? }` | AI assistant context mode | `ai_rag_query` |
+| `rag_trace_get` | Load stored Tier-1 RAG trace detail by request/trace id | `trace_id` | `RagTraceDetail { trace_id, feature, domain?, retrieval_mode, query_type, routing_decision, candidates_by_retriever, fused_ranking, final_context_composition, stage_latency, token_usage, citations[], variant_artifact_attribution, lineage, metadata, created_at }` | Developer-mode RAG inspector / diagnostics | `rag_trace_get` |
+| `rag_feedback_submit` | Persist user feedback against a recorded RAG trace | `request: { trace_id, verdict, fault_class?, notes? }` | `RagFeedbackAck { feedback_id, trace_id, recorded }` | Feedback/refinement loop | `rag_feedback_submit` |
 | `ai_suggest_links` | Suggest related pages from embeddings+graph | `request: { page_id, limit? }` | `Page[]` | Note linking workflows | `ai_suggest_links` |
 | `review_list` | List Morning Review items | `status?` (`pending|approved|rejected`) | `ReviewQueueItem[]` | Morning Review UI | `review_list` |
 | `review_approve` | Approve review item | `itemId`, `editedJson?` | `boolean` | Morning Review UI | `review_approve` |
@@ -478,7 +480,7 @@ Embedding provider options:
 > - `request_scope_selection`: `{ type: "request_scope_selection", scopeKind: "class_folder", pendingAction: "class_project_plan_create", prompt }`
 > - `open_review_item`: `{ type: "open_review_item", itemId }`
 > - `context_used`: `{ type: "context_used", domain: "finance" | "schedule" | "rag" | "travel" | "habits", window, sources[] }`
->   - `rag` uses lexical vault search (`sources: ["pages_fts"]`) in `ai_chat` provider routing.
+>   - `rag` uses hybrid chunk retrieval (`sources` may include `chunks_fts`, `vec_chunks`, `graph_edges`) in `ai_chat` provider routing.
 > - `diagnostic`: `{ type: "diagnostic", message, severity?, code? }` (non-fatal retrieval/provider warnings surfaced to chat UI)
 >
 > **`ReviewQueueItem` additive fields (backward compatible):**

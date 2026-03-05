@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.10] — 2026-03-05
+
+### Added
+- RAG observability/refinement contract surface:
+  - `rag_trace_get`
+  - `rag_feedback_submit`
+
+### Changed
+- `ai_rag_query` now documents additive routed-retrieval metadata:
+  - `retrieval_mode`
+  - `query_type`
+  - `citations[]`
+- RAG/tooling docs now define trace-detail payload shape and hybrid chunk retriever source labels (`chunks_fts`, `vec_chunks`, `graph_edges`).
+
 ## [0.10.9] — 2026-02-25
 
 ### Added
