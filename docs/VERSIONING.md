@@ -19,7 +19,7 @@ MAJOR.MINOR.PATCH
 | MINOR | New commands added, new optional fields added to existing commands |
 | PATCH | Documentation fixes, typo corrections, no contract changes |
 
-**Current version:** `0.10.11` (pre-release, all changes are considered non-breaking until 1.0)
+**Current version:** `0.10.13` (pre-release, all changes are considered non-breaking until 1.0)
 
 ---
 
@@ -46,6 +46,7 @@ MAJOR.MINOR.PATCH
 Example (ADR-0018 E23): adding `calendar_get_range` / `calendar.getRange` is a **MINOR** contract change.
 Example (ADR-0019 V1): adding `obsidian_*` command surface and `AISettings.embeddingProvider` is a **MINOR** contract change.
 Example (ADR-0036 Phase 3): adding `rag_dashboard_summary` / `rag_dashboard_failures` is a **MINOR** contract change.
+Example (ADR-0036 Phase 5/6): adding `rag_variant_*` / `rag_index_artifact_*` / `rag_lab_run` is a **MINOR** contract change.
 
 ### No Version Change (PATCH)
 

@@ -5,6 +5,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.13] — 2026-03-06
+
+### Added
+- RAG platform control-plane contract surface:
+  - `rag_variant_list`
+  - `rag_variant_create`
+  - `rag_variant_clone`
+  - `rag_variant_archive`
+  - `rag_variant_set_active`
+  - `rag_variant_set_shadow`
+  - `rag_index_artifact_list`
+  - `rag_index_artifact_build`
+  - `rag_index_artifact_status`
+  - `rag_index_artifact_promote`
+  - `rag_index_artifact_rollback`
+  - `rag_lab_run`
+
+### Changed
+- RAG trace/dashboard docs now define Phase 5/6 additive lineage and rollout metadata:
+  - `RagTraceDetail.lineage` is now a structured lineage object with role/peer/comparison fields.
+  - `RagFailureRow` now carries optional variant/artifact/lineage attribution.
+  - `RagDashboardSummary` now documents an optional `live_experiment` aggregate block for active-vs-shadow deltas.
+- RAG platform docs now define immutable variant/artifact snapshot semantics, build-job identity (`job_id == index_artifact_id` in v1), and shadow-sampling configuration defaults.
+
 ## [0.10.12] — 2026-03-06
 
 ### Added
