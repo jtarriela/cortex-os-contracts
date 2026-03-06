@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.12] — 2026-03-06
+
+### Added
+- RAG eval / judge foundation contract surface:
+  - `rag_eval_suite_list`
+  - `rag_eval_run_start`
+  - `rag_eval_run_status`
+  - `rag_eval_run_results`
+  - `rag_eval_baseline_set`
+  - `rag_eval_case_export_from_trace`
+  - `rag_judge_config_list`
+  - `rag_judge_config_create`
+  - `rag_judge_config_set_active`
+  - `rag_judge_calibrate`
+
+### Changed
+- RAG docs now define Phase 4 deterministic eval payloads, baseline comparison rows, and redaction-by-default trace export semantics.
+- Judge config docs now treat local calibration anchors as first-class request payloads for immutable config creation.
+
 ## [0.10.11] — 2026-03-06
 
 ### Added
