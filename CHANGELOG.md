@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.11] — 2026-03-06
+
+### Added
+- RAG dashboard contract surface:
+  - `rag_dashboard_summary`
+  - `rag_dashboard_failures`
+
+### Changed
+- `ai_chat` docs now state that `request_id` is the stable public trace identifier used by the RightDrawer RAG inspector and dashboard drilldowns.
+- `rag_trace_get` / `rag_feedback_submit` docs now cover shared `ai_chat` + `ai_rag_query` trace usage.
+
 ## [0.10.10] — 2026-03-05
 
 ### Added
