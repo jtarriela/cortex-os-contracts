@@ -8,15 +8,20 @@
 
 ## 1) Overview
 
-Cortex OS uses **tauri-specta** to auto-generate TypeScript type bindings from Rust struct and command definitions. This eliminates hand-maintained type duplication between the backend and frontend. The contracts repo documents the command surface; the actual type definitions live in Rust code and are generated into TypeScript.
+Cortex OS plans to use **tauri-specta** to auto-generate TypeScript type bindings from Rust struct and command definitions. This eliminates hand-maintained type duplication between the backend and frontend. The contracts repo documents the command surface; the actual type definitions live in Rust code.
 
 ```
 ┌──────────────────────┐     tauri-specta     ┌──────────────────────┐
 │  Rust Backend        │ ──────────────────>  │  Frontend            │
-│  #[tauri::command]   │                      │  services/backend.ts │
-│  Rust structs        │                      │  (generated types)   │
+│  #[tauri::command]   │                      │  raw generated       │
+│  Rust structs        │                      │  bindings (future)   │
 └──────────────────────┘                      └──────────────────────┘
 ```
+
+Current repo state:
+- `frontend/services/backend.ts` is a hand-maintained facade.
+- It preserves stable frontend-friendly function names, performs DTO normalization, and wraps raw `invoke()` calls.
+- Any future generated bindings should feed that facade rather than overwrite it.
 
 ---
 
@@ -51,7 +56,7 @@ pub struct PageRef {
 
 ### Generating TypeScript (Build Step)
 
-During the build, `tauri-specta` generates a TypeScript file with typed `invoke()` wrappers:
+When enabled, `tauri-specta` can generate a TypeScript file with typed `invoke()` wrappers:
 
 ```typescript
 // Auto-generated — do not edit
@@ -72,13 +77,16 @@ export interface PageRef {
 
 ### Output Location
 
-Generated TypeScript is written to:
+Generated TypeScript should be written to a dedicated raw-bindings file and imported by the hand-maintained facade. It must not overwrite:
 
 ```
-frontend/src/services/backend.ts
+frontend/services/backend.ts
 ```
 
-This file replaces the current `dataService.ts` as the frontend's data access layer. View components import from `backend.ts` instead of calling `dataService` functions.
+Recommended pattern:
+- generated raw bindings live in a separate file/path owned by codegen
+- `frontend/services/backend.ts` wraps those bindings and preserves normalization plus compatibility behavior
+- view components continue importing the facade, not the raw generated layer
 
 ---
 
@@ -94,32 +102,32 @@ This file replaces the current `dataService.ts` as the frontend's data access la
 
 ## 4) Manual Extensions
 
-Sometimes the generated types need augmentation:
+Sometimes generated types need augmentation:
 
-- **Computed fields** (e.g., `durationMinutes` derived from `start` and `end`) — add to a `frontend/src/services/backend.extensions.ts` file that re-exports generated types with added fields
-- **Frontend-only types** (e.g., UI state, animation flags) — define in `frontend/src/types.ts`, never in the generated file
+- **Computed fields** (e.g., `durationMinutes` derived from `start` and `end`) — add them in the hand-maintained bridge or companion extension files
+- **Frontend-only types** (e.g., UI state, animation flags) — define in `frontend/types.ts`, never in the generated file
 
-**Rule:** Never edit `backend.ts` directly. It is regenerated on every build.
+**Rule:** Never point codegen at `frontend/services/backend.ts`. That file is intentionally hand-maintained.
 
 ---
 
 ## 5) CI Verification
 
-The CI pipeline verifies that generated types are up-to-date:
+If codegen is enabled, CI should verify that the generated raw-bindings artifact is up-to-date:
 
 ```bash
 # Generate fresh bindings
 cargo test -p cortex_core -- generate_bindings
 
-# Check for uncommitted changes
-git diff --exit-code frontend/src/services/backend.ts
+# Check for uncommitted changes in the generated artifact
+git diff --exit-code <generated-bindings-path>
 ```
 
 If the generated file differs from what's committed, the CI check fails. This ensures that:
 
 1. Rust type changes are always reflected in the TypeScript bindings
-2. No manual edits have been made to the generated file
-3. The frontend and backend are always in sync
+2. No manual edits have been made to the generated artifact
+3. The frontend raw bindings and backend are in sync
 
 ---
 
@@ -142,16 +150,16 @@ If the generated file differs from what's committed, the CI check fails. This en
 
 ---
 
-## 7) Transition from dataService.ts
+## 7) Current Frontend Boundary
 
-During Phase 1 IPC wiring:
+Current state:
 
-1. `backend.ts` is generated with typed invoke wrappers
-2. View components are updated to import from `backend.ts` instead of `dataService.ts`
-3. `dataService.ts` is gradually deprecated (functions removed as their `backend.ts` equivalents are verified)
-4. Once all views use `backend.ts`, `dataService.ts` is deleted
+1. `frontend/services/backend.ts` is the active frontend data-access facade.
+2. It is hand-maintained and contains normalization, compatibility shims, and domain-oriented helper names.
+3. View components and hooks import that facade directly.
+4. Future codegen should emit raw bindings underneath that facade, not replace it.
 
-The test strategy (ADR-0012) ensures that tests written against `dataService.ts` contracts transfer seamlessly — the test assertions remain valid, only the import path changes.
+This keeps the contracts/backend surface explicit while preserving a stable frontend API boundary.
 
 ---
 

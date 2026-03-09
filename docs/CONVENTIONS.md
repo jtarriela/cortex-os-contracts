@@ -26,10 +26,12 @@ Commands follow Tauri's convention of Rust function names exposed via `#[tauri::
 
 ### Phase 0 Bridge Commands
 
-The frontend's `dataService.ts` currently uses domain-specific function names (e.g., `addTask`, `getCalendarEvents`). The contracts wiring matrix (`002_IPC_WIRING_MATRIX.md`) documents these as bridge commands with dot-notation (e.g., `tasks.create`). During Phase 1 IPC wiring, these map to the page-centric commands above:
+The current frontend bridge layer lives in `frontend/services/backend.ts` and exposes domain-oriented function names (for example `addTask`, `getWeekEvents`, `getTravelWorkspace`) on top of the raw snake_case IPC commands. The contracts wiring matrix (`002_IPC_WIRING_MATRIX.md`) documents many of these as dot-notation aliases (for example `tasks.create`). These dot-notation rows are documentation aliases for the frontend bridge, not separate runtime command names. They map to the page-centric commands above:
 
 - `tasks.create` → `vault_create_page(kind: "task", ...)`
 - `tasks.list` → `collection_query(collection_id: "col_tasks", ...)`
+
+Raw commands that are consumed directly by the frontend without a dot-notation alias should be documented in the matrix under their real snake_case names.
 
 See `001_architecture.md` Section 6.2 for the full target-state command surface.
 

@@ -1,12 +1,15 @@
 # IPC Wiring Matrix
 
-This matrix documents the public **IPC contract** for Cortex OS. Each command listed here is defined in the contracts crate (Rust) and has a corresponding TypeScript client generated for the frontend. The purpose of this matrix is to ensure that **frontend**, **contracts** and **backend** stay in sync: when adding a command in one layer, update this document and open paired pull requests in `cortex-os-frontend` and `cortex-os-backend`.
+This matrix documents the public **IPC contract** for Cortex OS. The command surface below is consumed by the hand-maintained frontend bridge in `frontend/services/backend.ts`, plus a small number of raw snake_case commands and events used directly by the frontend. The purpose of this matrix is to ensure that **frontend**, **contracts**, and **backend** stay in sync: when adding or changing a command in one layer, update this document and open paired pull requests in `cortex-os-frontend` and `cortex-os-backend`.
 
-**Source of truth:** Commands are derived from the frontend `dataService.ts` and `aiService.ts` API surface. Every async function the frontend calls will become an IPC command when the Tauri backend is wired.
+**Source of truth:** Commands are derived from the current frontend `services/backend.ts` and `services/aiService.ts` surfaces, backed by the registered `#[tauri::command]` handlers in the backend. The matrix intentionally mixes:
+- frontend-facing bridge aliases such as `tasks.create` and `travel.getWorkspace`
+- raw snake_case IPC commands such as `vault_create`, `settings_get`, and `calendar_add_from_task`
+- emitted runtime events such as `page_updated` and `ai_stream_chunk`
 
 ## Naming Convention Reconciliation
 
-> **Note (ADR-0006, ADR-0007):** The command names below use dot-notation with domain-specific namespaces (e.g., `tasks.create`, `journal.list`). Per ADR-0006, the production backend uses the EAV/Page model where all entities are pages. The target-state IPC surface uses **snake_case page-centric commands** as defined in `001_architecture.md` Section 6.2 (e.g., `vault_create_page`, `collection_query`, `page_update_props`).
+> **Note (ADR-0006, ADR-0007):** Many command names below use dot-notation with domain-specific namespaces (e.g., `tasks.create`, `journal.list`). Those rows are documentation aliases for the frontend bridge layer, not separate runtime command names. Per ADR-0006, the production backend uses the EAV/Page model where all entities are pages. The runtime IPC surface uses **snake_case page-centric commands** as defined in `001_architecture.md` Section 6.2 (e.g., `vault_create_page`, `collection_query`, `page_update_props`).
 >
 > The domain-specific commands below are **Phase 0 bridge commands** — they document the frontend's `services/backend.ts` API surface mapped to EAV page-centric commands. **Phase 1 IPC wiring is complete** — all domain operations go through the generic EAV command surface:
 >
@@ -42,16 +45,16 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `vault_create_page(kind:"task", props, body)` |
-| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query("tasks")` |
-| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:\"FS\", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `page_update_props(page_id, props)` |
+| `tasks.list` | List all tasks; filtering/grouping happens in frontend controllers and views | — | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query(collectionId:"col_tasks")` + frontend normalization/filtering |
+| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:"FS", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `page_update_props(page_id, props)` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `vault_delete(page_id)` |
 
 ### Projects
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `projects.create` | Create a project | `template_id?`, `title`, `description?`, `priority?` | `Project` | ProjectsIndex (new project) | `vault_create_page(kind:"project", props)` |
-| `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `collection_query("projects")` |
+| `projects.create` | Create a project using a frontend-selected template body scaffold | `templateId`, `title` | `Project` | ProjectsIndex (new project) | `vault_create_page(kind:"project", props, body)` |
+| `projects.list` | List all projects; status/search filtering happens in frontend controllers and views | — | `Project[]` | ProjectsIndex | `collection_query(collectionId:"col_projects")` + frontend normalization/filtering |
 | `projects.get` | Get project details | `id` | `ProjectDetail` | ProjectDetail view | `vault_read(page_id)` |
 | `projects.update` | Update project | `id`, updatable fields incl. status/priority/date-range, `artifacts`, `columns` (milestones are dual-write body + milestone pages) | `Project` | ProjectDetail (overview + timeline), ProjectsIndex cards | `page_update_props(page_id, props)` |
 
@@ -59,8 +62,8 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `projects.milestones.list` | List milestone pages for project | `project_id` | `ProjectMilestone[]` | ProjectDetail timeline + body sync | `collection_query(\"col_project_milestones\")` + frontend filter by `project_ref` |
-| `projects.milestones.create` | Create milestone page | `project_ref`, `title`, `target_date`, `status`, `dependencies[]`, `baseline_date?`, `completed_date?`, `checklist_anchor_id` | `ProjectMilestone` | Timeline add milestone, body→page sync | `vault_create_page(kind:\"project_milestone\", props)` |
+| `projects.milestones.list` | List milestone pages for project | `projectId` | `ProjectMilestone[]` | ProjectDetail timeline + body sync | `collection_query(collectionId:"col_project_milestones")` + frontend filter by `project_ref` |
+| `projects.milestones.create` | Create milestone page | `project_ref`, `title`, `target_date`, `status`, `dependencies[]`, `baseline_date?`, `completed_date?`, `checklist_anchor_id` | `ProjectMilestone` | Timeline add milestone, body→page sync | `vault_create_page(kind:"project_milestone", props)` |
 | `projects.milestones.update` | Update milestone page | `id` + updatable milestone fields | `ProjectMilestone` | Timeline edits, body checkbox/status sync | `page_update_props(page_id, props)` |
 | `projects.milestones.delete` | Delete milestone page | `id` | `void` | Timeline delete, body line delete sync | `vault_delete(page_id)` |
 
@@ -75,10 +78,10 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `vault.getRoot` | Get vault file tree | — | `FileNode[]` | NotesLibrary file tree | `VaultService::get_root` |
-| `vault.getFileContent` | Get note content | `id` | `Note` | NotesLibrary note viewer, RightDrawer | `VaultService::get_file_content` |
-| `notes.create` | Create a note | `title`, `content`, `path`, `tags?` | `Note` | NotesLibrary | `NoteService::create` |
-| `notes.update` | Update a note | `id`, `title?`, `content?`, `tags?` | `Note` | NotesLibrary | `NoteService::update` |
+| `vault.getRoot` | Get the vault page tree projection used by the Notes UI | — | `FileNode[]` | NotesLibrary file tree, RightDrawer retrieval exclusion picker | `vault_list()` + frontend `pageToFileNode` projection |
+| `vault.getFileContent` | Get a note/page normalized into the frontend `Note` shape | `id` | `Note \| undefined` | NotesLibrary note viewer, RightDrawer | `vault_read(page_id)` + frontend `pageToNote` projection |
+| `notes.create` | Create a Cortex-managed note from frontend note content | `title`, `content`, `tags?` | `Note` | Save-as-Cortex flow for linked notes | `vault_create_page(kind:"note", props, body)` + frontend `pageToNote` projection |
+| `notes.update` | Persist Cortex-managed note body changes | `id`, `content` | `void` | NotesLibrary editor save/autosave | `save_commit(request: { page_id, body })` |
 | `vault_get_profile` | Read active vault onboarding profile | — | `VaultProfile \| null` | App bootstrap gate | `vault_get_profile` |
 | `vault_create` | Create/activate vault profile + starter structure | `request: { root_path, name? }` | `VaultProfile` | Vault Setup splash | `vault_create` |
 | `vault_select` | Validate/select an existing vault profile | `request: { root_path }` | `VaultProfile` | Vault Setup splash | `vault_select` |
@@ -87,6 +90,14 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `index_queue_status` | Read indexing queue state for diagnostics/progress | `limit?` | `IndexQueueJob[]` | Debug/progress UI | `index_queue_status` |
 | `vault_markdown_metadata_audit` | Audit Cortex-managed markdown files for canonical frontmatter parity | `request?: { kinds?, include_external_mirrors?, limit? }` | `VaultMarkdownMetadataAuditResult` | Vault maintenance / diagnostics (Settings → Integrations) | `vault_markdown_metadata_audit` |
 | `vault_markdown_metadata_repair` | Rewrite Cortex-managed markdown files to canonical frontmatter + body (skip linked Obsidian) | `request?: { page_ids?, kinds?, include_external_mirrors?, force_conflicts?, limit? }` | `VaultMarkdownMetadataRepairResult` | Vault maintenance / explicit repair action (Settings → Integrations) | `vault_markdown_metadata_repair` |
+
+### Settings / Health
+
+| Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
+|---------|-------------|----------------|----------------|----------------|----------------|
+| `settings.get` | Read vault-scoped AI/app settings surfaced through the frontend settings controller | — | `AISettings` | Settings, RightDrawer model bootstrap | `settings_get` |
+| `settings.update` | Persist AI/app settings | `settings: AISettings` | `AISettings` | Settings save flows | `settings_update` |
+| `ping` | Lightweight health check; frontend converts successful resolution into online status | — | `string` (`"pong"`) | Offline indicator, `useConnectivityStatus` | `ping` |
 
 ### Canonical Page Mutations (Phase 5 alignment)
 
@@ -104,7 +115,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `travel.listTrips` | List all trips | — | `Trip[]` | Travel gallery | `TravelService::list` |
+| `travel.listTrips` | List all trips | — | `Trip[]` | Travel gallery | `collection_query(collectionId:"col_travel")` + frontend normalization |
 | `travel.createTrip` | Create a trip folder and overview note | `title`, `destination`, `startDate`, `endDate`, `budget?` | `Trip` | Travel "New Trip" splash modal (destination + dates + duration + optional budget) | `travel_create_trip` (`Travel/Trips/<slug>/Overview.md`, status normalized to `Planning`) |
 | `travel.getWorkspace` | Travel v2 workspace projection (trip + locations/items/expenses + legacy cards) | `tripId` | `{ trip, locations[], items[], expenses[], legacyCards[] }` | Travel v2 workspace hydration | `travel_get_workspace` |
 | `travel.createLocation` | Create a structured location card under a trip | `tripId`, `title`, `props?`, `body?` | `Page` (`kind="trip_location"`) | Travel v2 Locations panel | `travel_create_location` |
@@ -185,11 +196,11 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `finance.getAccounts` | List manual accounts | — | `ManualAccount[]` | Finance Accounts tab | `FinanceService::get_accounts` |
-| `finance.addAccount` | Add manual account | `name`, `type`, `balance` | `ManualAccount` | Finance "Add Account" | `FinanceService::add_account` |
+| `finance.getAccounts` | List manual accounts | — | `ManualAccount[]` | Finance Accounts tab | `collection_query(collectionId:"col_finance_accounts")` + frontend normalization |
+| `finance.addAccount` | Add manual account | `name`, `type`, `balance` | `void` | Finance "Add Account" | `finance_add_account` |
 | `finance.getBudget` | Get/create current manual budget month | — | `Page` (`kind="budget_month"`) | Finance manual budget template (current month planner) | `finance_get_budget` |
 | `finance.getSummary` | Get month rollup | `month?` | `FinanceSummary` | Finance manual analysis snapshot + drill-down metrics | `finance_get_summary` |
-| `finance.listTransactions` | List transactions | `month?` | `Transaction[]` | Finance Transactions tab | `FinanceService::list_transactions` |
+| `finance.listTransactions` | List manual transactions | — | `Transaction[]` | Finance Transactions tab | `collection_query(collectionId:"col_finance_transactions")` + frontend normalization |
 | `finance.importCsv` | Import CSV file | `filename`, `content` **or** `account_id`, `rows[]` | `Transaction[]` | Finance Import tab | `finance_import_csv` |
 | `finance.ynabStatus` | Read local YNAB connection/sync status | — | `FinanceYnabStatus` | Settings Integrations (YNAB) + Finance YNAB gate/status card | `finance_ynab_status` |
 | `finance.ynabConnectPat` | Save + validate YNAB Personal Access Token and cache budgets | `token`, `selectedBudgetId?` | `{ status: FinanceYnabStatus }` | Settings Integrations YNAB connect form | `finance_ynab_connect_pat` |
@@ -203,17 +214,18 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `journal.create` | Add journal entry | `date?`, `content`, `mood?`, `tags?` | `JournalEntry` | Journal view | `JournalService::create` |
-| `journal.list` | List entries | `date_range?`, `mood?`, `tag?` | `JournalEntry[]` | Journal view | `JournalService::list` |
+| `journal.create` | Add journal entry | `date?`, `content`, `mood?`, `tags?` | `JournalEntry` | Journal view | `vault_create_page(kind:"journal_entry", props, body)` + frontend normalization |
+| `journal.list` | List all entries; sorting/filtering happens in frontend controllers and views | — | `JournalEntry[]` | Journal view | `collection_query(collectionId:"col_journal")` + frontend normalization/sort |
 | `journal.query` | Filter entries by date/mood | `startDate?`, `endDate?`, `mood?` | `JournalEntry[]` | Journal timeline filtering | `journal_query` |
 | `journal.moodTrends` | Aggregate mood counts | `startDate?`, `endDate?` | `{ mood, count }[]` | Journal mood chart | `journal_mood_trends` |
+| `journal.analytics` | Aggregate journal KPI, distribution, and trend buckets for the active date window | `startDate?`, `endDate?`, `bucketDays?`, `maxTerms?` | `JournalAnalyticsResponse` | Journal analytics panel, `useJournalView` | `journal_analytics` |
 
 ### Habits
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `habits.list` | List all habits | — | `Habit[]` | Habits view, TodayDashboard | `HabitService::list` |
-| `habits.create` | Create a habit | `title`, `frequency?` | `Habit` | Habits "Add Habit" | `HabitService::create` |
+| `habits.list` | List all habits; ordering happens from persisted `sort_order` and frontend fallback sorting | — | `Habit[]` | Habits view, TodayDashboard | `collection_query(collectionId:"col_habits")` + frontend normalization/sort |
+| `habits.create` | Create a habit with optional seed data for calendar sync, habit identity, and prep fields | `title`, `seed?` (`frequency?`, `completedDates?`, `mvhDates?`, `identityStatement?`, `anchorCue?`, `actionResponse?`, `mvhAction?`, `rewardSignal?`, `temptationBundleWant?`, `temptationBundleNeed?`, `scheduleTemplates?`, `syncToCalendar?`, `calendarBlockType?`, `archived?`, `prepEnvironmentChecklistItems?`, `prepNotes?`, `sortOrder?`) | `Habit` | Habits "Add Habit" | `vault_create_page(kind:"habit", props)` + frontend normalization |
 | `habits.toggle` | Toggle habit completion state (Atomic Habits dual-state tracking). Supports `STANDARD`/`MVH` via request `completionType`; same-day completion modes are mutually exclusive. | `pageId`, `date`, `completionType?` (`standard\|mvh`, defaults `standard`) | `Habit` | Habits daily check (standard vs MVH), TodayDashboard | `habits_toggle` |
 | `habits.getSummary` | Habit analytics with compatibility totals + split `STANDARD`/`MVH` counts (ADR-0032) | `days?` | `HabitSummary[]` (`completions`/`windowCompletions` preserved as combined totals; split metrics included) | Habits analytics panel | `habits_get_summary` |
 | `habits.syncWeekPlan` | Idempotently sync `habit_week_review.anchor_plan_items` into linked local `calendar_event` blocks and persist sync metadata/result summary | `reviewId` | `HabitWeekSyncResult` (`created`, `updated`, `deleted`, `skipped`, `eventIds[]`) | Habits Weekly Review look-forward planner sync CTA | `habits_sync_week_plan(review_id)` |
@@ -222,31 +234,32 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `goals.list` | List goals | `status?`, `project_id?` | `Goal[]` | Goals view | `GoalService::list` |
-| `goals.create` | Create a goal | `title`, `description?`, `type`, `target_date`, `project_id?` | `Goal` | Goals "Add Goal", AI agent `addGoal` | `GoalService::create` |
-| `goals.update` | Update a goal | `id`, updatable fields | `Goal` | Goals progress slider | `GoalService::update` |
+| `goals.list` | List all goals; filtering happens in frontend controllers and views | — | `Goal[]` | Goals view | `collection_query(collectionId:"col_goals")` + frontend normalization |
+| `goals.create` | Create a goal | `title`, `description?`, `type`, `target_date`, `project_id?` | `Goal` | Goals "Add Goal", AI agent `addGoal` | `vault_create_page(kind:"goal", props, body)` + frontend normalization |
+| `goals.update` | Update a goal | `id`, updatable fields | `Goal` | Goals progress slider | `page_update_props(page_id, props)` |
 | `goals.getProgressSummary` | Goal rollup metrics | `projectId?` | `GoalProgressSummary` | Goals dashboard chart | `goals_get_progress_summary` |
 
 ### Meals / Recipes
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `meals.list` | List meals | `date_range?` | `Meal[]` | Meals view | `MealService::list` |
-| `meals.create` | Log a meal | `date`, `type` (enum: `BREAKFAST\|LUNCH\|DINNER\|SNACK`), `description`, `recipe_id?`, `calories?` | `Meal` | Meals weekly planner slot | `MealService::create` |
-| `meals.update` | Update a meal | `id`, updatable Meal fields | `Meal` | Meals weekly planner | `MealService::update` |
-| `meals.delete` | Remove a meal | `id` | `void` | Meals planner slot replace | `MealService::delete` |
+| `meals.list` | List all meals; date-window filtering happens in frontend controllers and views | — | `Meal[]` | Meals view | `collection_query(collectionId:"col_meals")` + frontend normalization |
+| `meals.create` | Log a meal | `date`, `type` (enum: `BREAKFAST\|LUNCH\|DINNER\|SNACK`), `description`, `recipe_id?`, `calories?` | `Meal` | Meals weekly planner slot | `vault_create_page(kind:"meal", props)` + frontend normalization |
+| `meals.update` | Update a meal | `id`, updatable Meal fields | `Meal` | Meals weekly planner | `page_update_props(page_id, props)` |
+| `meals.delete` | Remove a meal | `id` | `void` | Meals planner slot replace | `vault_delete(page_id)` |
 | `meals.getNutritionSummary` | Date-window nutrition rollup | `startDate?`, `endDate?` | `MealsNutritionSummary` | Meals analytics cards | `meals_get_nutrition_summary` |
-| `recipes.list` | List recipes | `tags?` | `Recipe[]` | Meals recipe library | `RecipeService::list` |
-| `recipes.create` | Create a recipe | `title`, `ingredients`, `instructions`, `calories?`, `tags?`, `image_url?` | `Recipe` | Meals recipe form | `RecipeService::create` |
-| `recipes.update` | Update a recipe | `id`, updatable Recipe fields incl. `image_url` | `Recipe` | Meals recipe card (image upload) | `RecipeService::update` |
-| `recipes.delete` | Delete a recipe | `id` | `void` | Meals recipe card (planned) | `RecipeService::delete` |
+| `recipes.list` | List all recipes; tag filtering happens in frontend controllers and views | — | `Recipe[]` | Meals recipe library | `collection_query(collectionId:"col_recipes")` + frontend normalization |
+| `recipes.create` | Create a recipe | `title`, `ingredients`, `instructions`, `calories?`, `tags?`, `image_url?` | `Recipe` | Meals recipe form | `vault_create_page(kind:"recipe", props, body)` + frontend normalization |
+| `recipes.update` | Update a recipe | `id`, updatable Recipe fields incl. `image_url` | `Recipe` | Meals recipe card (image upload) | `page_update_props(page_id, props)` |
+| `recipes.delete` | Delete a recipe | `id` | `void` | Meals recipe card (planned) | `vault_delete(page_id)` |
 
 ### Workouts
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `workouts.list` | List workouts | — | `Workout[]` | Workouts view | `WorkoutService::list` |
-| `workouts.create` | Log a workout | `name`, `date`, `exercises`, `duration` | `Workout` | Workouts view (planned) | `WorkoutService::create` |
+| `workouts.list` | List workouts | — | `Workout[]` | Workouts view | `collection_query(collectionId:"col_workouts")` + frontend normalization |
+
+> `workouts.create` is still planned/unwired in the current frontend surface. Do not treat it as an active command row until a real `frontend/services/backend.ts` caller is added.
 
 ### Calendar / Schedule
 
@@ -255,6 +268,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `calendar.getToday` | Get today's schedule events | — | `CalendarEvent[]` | TodayDashboard timeline | `calendar_get_today()` (classifies stored timestamps by the user's local calendar day) |
 | `calendar.getWeek` | Get week events | `startDate?` | `CalendarEvent[]` | WeekDashboard | `calendar_get_week(start_date)` |
 | `calendar.getRange` | Get calendar events in explicit date window | `startDate` (ISO datetime/date), `endDate` (ISO datetime/date) | `CalendarEvent[]` | `useCalendarWorkspace` range loading for DayFlow week/day/month views | `calendar_get_range(start_date, end_date)` (inclusive `startDate`, exclusive `endDate`, includes `calendar_event` + scheduled `task` pages, classifies stored timestamps by the user's local calendar day, sorted by `COALESCE(props.start, props.start_time)`) |
+| `calendar_add_from_task` | Quick "add to schedule" path that writes task start/end props from a TodayDashboard time slot | `taskId`, `start` (ISO datetime), `end` (ISO datetime) | `Page` (updated task page; frontend discards the return value) | TodayDashboard quick schedule action via `addToSchedule()` | `calendar_add_from_task(task_id, start, end)` |
 | `calendar.addEvent` | Create event | `title`, `start` (ISO datetime), `end` (ISO datetime), `type` (enum: `event\|task\|reminder\|deep-work`), `color?`, `description?`, `location?`, `linked_note_id?`, `task_id?` | `CalendarEvent` | TodayDashboard schedule, WeekDashboard click-to-add | `vault_create_page(kind:"calendar_event", props)` |
 | `calendar.updateEvent` | Update event | `id`, updatable fields incl. `sync_external?` (boolean) | `CalendarEvent` | WeekDashboard drag | `page_update_props(page_id, props)` |
 | `calendar.deleteEvent` | Delete/unschedule event. ADR-0032 extension: if target is a habit-generated local `calendar_event`, backend also marks/removes the linked Weekly Review plan instance. | `id` | `void` | WeekDashboard right-click/delete action (also applies to habit-generated blocks) | `calendar_delete_event(event_id)` (`calendar_event` delete, `task` unschedule path, linked habit-plan write-back for `habit_generated=true`) |
@@ -370,6 +384,8 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
+| `integrations.getSettings` | Read vault-scoped integration settings used by Settings, app bootstrap, and calendar/travel gating | — | `IntegrationSettings` | App bootstrap, Settings, WeekDashboard, Travel Gmail gating | `integrations_get_settings` |
+| `integrations.updateSettings` | Persist vault-scoped integration settings | `settings: Partial<IntegrationSettings>` | `IntegrationSettings` | Settings save flows, calendar sync setup, Travel Gmail gating | `integrations_update_settings` |
 | `integrations.googleAuth` | Authenticate with Google (calendar-only by default; optional Gmail scope upgrade for Travel) | `scopeProfile?` (`"calendar"` \| `"calendar_gmail"`, default `"calendar"`) | `string` (authorized account email) | Settings Integrations, Travel Gmail scope enable flow | `integrations_google_auth` (requires `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`) |
 | `integrations.googleCalendars` | List available calendars with metadata | — | `GoogleCalendarMetadata[]` (`id`, `summary`, `backgroundColor?`, `primary`) | Settings Integrations, Week planner filtering | `integrations_google_calendars` |
 | `integrations.triggerSync` | Trigger two-way sync manually and emit progress telemetry | — | `boolean` | Settings Integrations, background sync queue | `integrations_trigger_sync` |
@@ -415,7 +431,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `search.global` | Search all content | `query`, `limit?` | `SearchResult[]` | CommandPalette, AI agent `searchBrain` | `SearchService::global` |
+| `search.global` | Search all content | `query`, `limit?` | `SearchResult[]` | CommandPalette, AI agent `searchBrain` | `search_global` + frontend normalization |
 | `search.semantic` | Vector-only semantic search | `query`, `limit?` | `SearchResult[]` | Future semantic tab / agent tools | `search_semantic` |
 | `search.graphNeighbors` | Traverse related pages by link distance | `pageId`, `depth?`, `limit?` | `SearchResult[]` | CommandPalette related graph badges | `search_graph_neighbors` |
 | `search.graphLinks` | Exact directed link inspection (incoming/outgoing/both) | `pageId`, `direction?`, `limit?` | `GraphLinkResult[]` | RightDrawer note inspector backlinks/outgoing diagnostics | `search_graph_links` |
