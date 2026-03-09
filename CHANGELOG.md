@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+- Calendar schedule docs now clarify that `calendar.getToday`, `calendar.getWeek`, and `calendar.getRange` bucket stored timestamps by the user's local calendar day when deciding day/week/range membership.
+
 ## [0.10.13] — 2026-03-06
 
 ### Added
