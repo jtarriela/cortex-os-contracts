@@ -208,7 +208,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `finance.ynabSync` | Full/delta YNAB view-only sync to local `ynab_*` pages + CSV mirror + analytics refresh | `budgetId?`, `mode?` (`auto\\|full\\|delta`), `writeCsv?`, `reanalyze?` | `FinanceYnabSyncResult` | Finance YNAB sync controls | `finance_ynab_sync` |
 | `finance.ynabGetTrackerConfig` | Read tracked-category analyzer config for selected or specified budget | `budgetId?` | `FinanceTrackedCategoryConfig` | Finance tracked categories manager | `finance_ynab_get_tracker_config` |
 | `finance.ynabSaveTrackerConfig` | Persist tracked-category analyzer config | `config { budgetId, categories[] }` | `FinanceTrackedCategoryConfig` | Finance tracked categories manager | `finance_ynab_save_tracker_config` |
-| `finance.ynabGetAnalytics` | Compute/read local YNAB whole-budget + tracked-category metrics | `monthKey?`, `budgetId?` | `FinanceYnabAnalytics` | Finance dashboard charts + category metrics | `finance_ynab_get_analytics` |
+| `finance.ynabGetAnalytics` | Compute/read local YNAB whole-budget + tracked-category metrics. `categoryBreakdown[]` is additive with `carriedFromLastMonthMilliunits` and `availableBeforeActivityMilliunits` so clients can render assigned-only values separately from carryover-aware spending bars. | `monthKey?`, `budgetId?` | `FinanceYnabAnalytics` | Finance dashboard charts + category metrics | `finance_ynab_get_analytics` |
 
 ### Journal
 
