@@ -7,8 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Cookbook contract surface for ADR-0039:
+  - `recipes.get`
+  - `recipes.importPreview`
+  - `recipes.importCommit`
+
 ### Changed
 - Calendar schedule docs now clarify that `calendar.getToday`, `calendar.getWeek`, and `calendar.getRange` bucket stored timestamps by the user's local calendar day when deciding day/week/range membership.
+- Meals/Recipes contract docs now reflect the Cookbook split:
+  - `recipes.list` now accepts backend-side filter/sort request fields and returns `RecipeCardSummary[]`
+  - `recipes.create` / `recipes.update` now persist structured recipe sections and metadata instead of flat `ingredients[]` + `instructions`
+  - `recipes.delete` now documents cookbook ownership instead of the legacy Meals recipe card flow
+  - recipe import preview/commit semantics, deterministic markdown bodies, lazy legacy normalization, dedupe rules, and multimodal fallback are now documented
 
 ## [0.10.13] — 2026-03-06
 

@@ -239,7 +239,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `goals.update` | Update a goal | `id`, updatable fields | `Goal` | Goals progress slider | `page_update_props(page_id, props)` |
 | `goals.getProgressSummary` | Goal rollup metrics | `projectId?` | `GoalProgressSummary` | Goals dashboard chart | `goals_get_progress_summary` |
 
-### Meals / Recipes
+### Meals / Cookbook
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
@@ -248,10 +248,25 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `meals.update` | Update a meal | `id`, updatable Meal fields | `Meal` | Meals weekly planner | `page_update_props(page_id, props)` |
 | `meals.delete` | Remove a meal | `id` | `void` | Meals planner slot replace | `vault_delete(page_id)` |
 | `meals.getNutritionSummary` | Date-window nutrition rollup | `startDate?`, `endDate?` | `MealsNutritionSummary` | Meals analytics cards | `meals_get_nutrition_summary` |
-| `recipes.list` | List all recipes; tag filtering happens in frontend controllers and views | — | `Recipe[]` | Meals recipe library | `collection_query(collectionId:"col_recipes")` + frontend normalization |
-| `recipes.create` | Create a recipe | `title`, `ingredients`, `instructions`, `calories?`, `tags?`, `image_url?` | `Recipe` | Meals recipe form | `vault_create_page(kind:"recipe", props, body)` + frontend normalization |
-| `recipes.update` | Update a recipe | `id`, updatable Recipe fields incl. `image_url` | `Recipe` | Meals recipe card (image upload) | `page_update_props(page_id, props)` |
-| `recipes.delete` | Delete a recipe | `id` | `void` | Meals recipe card (planned) | `vault_delete(page_id)` |
+| `recipes.list` | List cookbook recipes with backend-side filtering and summary projection | `request?` (`query?`, `tags[]?`, `course?`, `cuisine?`, `difficulty?`, `sort? = updated_desc \| title_asc \| rating_desc`) | `RecipeCardSummary[]` | Cookbook library, Meals recipe picker | `recipes_list(request)` |
+| `recipes.get` | Load a cookbook recipe detail record with lazy legacy normalization | `recipeId` | `RecipeDetail` | Cookbook detail panel/editor bootstrap | `recipes_get(recipe_id)` |
+| `recipes.create` | Create a cookbook recipe from structured fields and deterministic markdown | `recipe` (`title`, `description?`, `imageUrl?`, `ingredientSections[]`, `directionSections[]`, `notes?`, `servings?`, `prepTimeMinutes?`, `cookTimeMinutes?`, `totalTimeMinutes?`, `nutrition?`, `tags[]`, `course?`, `cuisine?`, `difficulty?`, `rating?`, `sourceName?`, `sourceUrl?`, `importMetadata?`) | `RecipeDetail` | Cookbook create flow | `recipes_create(recipe)` |
+| `recipes.update` | Persist structured cookbook recipe props plus deterministic markdown body | `recipeId`, `recipe` (same shape as `recipes.create`) | `RecipeDetail` | Cookbook edit flow, legacy recipe normalize-on-write path | `recipes_update(recipe_id, recipe)` |
+| `recipes.delete` | Delete a cookbook recipe | `recipeId` | `void` | Cookbook detail actions | `recipes_delete(recipe_id)` |
+| `recipes.importPreview` | Preview-only recipe import from URL/text/image sources | `sources[]` (`kind = url \| text \| image_base64` + source payload fields) | `RecipeImportPreviewResult` (`candidates[]`, `warnings[]`, `stats`, `provider`, `previewGeneratedAt`) | Cookbook import tab preview/review | `recipes_import_preview(sources)` |
+| `recipes.importCommit` | Persist selected recipe-import candidates; create-only, no merges | `approvedCandidates[]` (`candidateId`, `recipe`, `dedupeKey?`, `selected?`, `edited?`) | `RecipeImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Cookbook import tab commit/direct-save | `recipes_import_commit(approved_candidates)` |
+
+> Cookbook semantics notes:
+> - `recipes.list` filtering and sorting are backend-owned; frontend must not emulate filter/sort logic client-side beyond request construction.
+> - `recipes.get` parses deterministic recipe markdown into `RecipeDetail` and lazily normalizes legacy flat recipes on read without write-back.
+> - `recipes.create` / `recipes.update` require a non-empty `title`, at least one ingredient item, and at least one direction step.
+> - New writes keep recipe storage on `kind: recipe` and persist both structured props and deterministic markdown body.
+> - Deterministic recipe markdown uses `## Ingredients`, `## Directions`, and optional `## Notes`; titled subsections are expressed with `###`.
+> - Preview/commit import follows the Travel model: `recipes.importPreview` never writes pages or enqueues indexing jobs.
+> - Duplicate detection is driven by `import_dedupe_key`: source URL wins when present; otherwise title + flattened ingredient text are hashed.
+> - URL imports use deterministic extraction first (`json-ld` / HTML heuristics), then normalize into cookbook fields.
+> - Image import is capped to frontend-selected screenshots and may degrade with warnings when no multimodal provider is configured.
+> - `recipes.importCommit` is create-only: duplicates and invalid candidates are skipped and reported row-by-row; existing recipes are never merged in v1.
 
 ### Workouts
 
