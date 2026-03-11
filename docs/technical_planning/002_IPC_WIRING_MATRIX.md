@@ -46,7 +46,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `vault_create_page(kind:"task", props, body)` |
 | `tasks.list` | List all tasks; filtering/grouping happens in frontend controllers and views | — | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query(collectionId:"col_tasks")` + frontend normalization/filtering |
-| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:"FS", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `page_update_props(page_id, props)` |
+| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:"FS", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `task_update_atomic(request)` for the hot path; legacy compatibility remains `page_update_props(page_id, props)` + `page_update_body(page_id, body)` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `vault_delete(page_id)` |
 
 ### Projects
@@ -104,6 +104,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | Command | Description | Request fields | Response fields | Notes |
 |---------|-------------|----------------|----------------|-------|
 | `vault_create_page` | Create a page in EAV + vault markdown | `kind`, `props`, `body?` | `Page` | `props.title` is canonical title input. Optional top-level `title` is compatibility-only and not required by FE/contracts payloads. |
+| `task_update_atomic` | Update a task’s props/title/body in one mutation/finalize pass | `request: { page_id, props, title?, body?, preserve_body? }` | `Page` | Additive hot-path command for optimistic task toggles, schedule edits, and other task mutations that should avoid a separate `page_update_body` roundtrip. |
 | `page_update_body` | Update page markdown body | `page_id`, `body` | `Page` | Persists DB body and rewrites markdown file under active vault root. |
 | `save_commit` | Durable save+index operation | `request: { page_id, body }` | `Page` | Persists DB body, rewrites canonical markdown for Cortex-managed pages, then enqueues/coalesces indexing jobs. |
 | `vault_delete` | Delete page and markdown | `page_id` | `void` | Deletes the corresponding markdown file path before DB removal. |
@@ -214,11 +215,15 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `journal.create` | Add journal entry | `date?`, `content`, `mood?`, `tags?` | `JournalEntry` | Journal view | `vault_create_page(kind:"journal_entry", props, body)` + frontend normalization |
+| `journal.create` | Add journal entry | `date?`, `content`, `mood?`, `tags?` | `JournalEntry` | Journal view | `journal_create_entry(request)` for the local-first hot path; legacy compatibility remains `vault_create_page(kind:"journal_entry", props, body)` |
 | `journal.list` | List all entries; sorting/filtering happens in frontend controllers and views | — | `JournalEntry[]` | Journal view | `collection_query(collectionId:"col_journal")` + frontend normalization/sort |
 | `journal.query` | Filter entries by date/mood | `startDate?`, `endDate?`, `mood?` | `JournalEntry[]` | Journal timeline filtering | `journal_query` |
 | `journal.moodTrends` | Aggregate mood counts | `startDate?`, `endDate?` | `{ mood, count }[]` | Journal mood chart | `journal_mood_trends` |
 | `journal.analytics` | Aggregate journal KPI, distribution, and trend buckets for the active date window | `startDate?`, `endDate?`, `bucketDays?`, `maxTerms?` | `JournalAnalyticsResponse` | Journal analytics panel, `useJournalView` | `journal_analytics` |
+
+> Local-first hot-path notes:
+> - `task_update_atomic` is additive and exists to keep task toggles/schedule edits on a single mutation path without a second body-write IPC.
+> - `journal_create_entry` is additive and exists to let the frontend acknowledge the new entry immediately, then refresh analytics/history in the background.
 
 ### Habits
 
