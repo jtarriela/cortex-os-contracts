@@ -16,7 +16,7 @@ This matrix documents the public **IPC contract** for Cortex OS. The command sur
 > | Bridge Command | Target Command | Notes |
 > |---|---|---|
 > | `tasks.create` | `vault_create_page(kind: "task", ...)` | Properties normalized to EAV |
-> | `tasks.list` | `collection_query(collectionId: "col_tasks")` | Filters via EAV properties |
+> | `tasks.list` | `collection_query_summary(collectionId: "col_tasks")` | Metadata/body-excerpt projection for list surfaces; full task detail hydrates via `vault_read(page_id)` on demand |
 > | `tasks.update` | `page_update_props(pageId, props)` | Property updates via EAV |
 > | `tasks.delete` | `vault_delete(pageId)` | Removes .md file + index |
 > | ~~`schedule.getToday`~~ | `calendar.getToday` | **Removed** — ScheduleItem eliminated per ADR-0007; use `calendar.getToday` |
@@ -29,8 +29,10 @@ This matrix documents the public **IPC contract** for Cortex OS. The command sur
 Top-level command arguments passed from frontend `invoke()` use **camelCase** keys derived from Rust parameter names.
 
 - `collection_query(collection_id: String)` → `invoke('collection_query', { collectionId })`
+- `collection_query_summary(collection_id: String)` → `invoke('collection_query_summary', { collectionId })`
 - `calendar_get_week(start_date: Option<String>)` → `invoke('calendar_get_week', { startDate })`
 - `calendar_get_range(start_date: String, end_date: String)` → `invoke('calendar_get_range', { startDate, endDate })`
+- `vault_list_summary(kind: Option<String>)` → `invoke('vault_list_summary', { kind })`
 - `travel_create_trip(start_date, end_date, budget?)` → `invoke('travel_create_trip', { startDate, endDate, budget })`
 - `habits_toggle(page_id)` → `invoke('habits_toggle', { pageId })`
 
@@ -45,7 +47,8 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `vault_create_page(kind:"task", props, body)` |
-| `tasks.list` | List all tasks; filtering/grouping happens in frontend controllers and views | — | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query(collectionId:"col_tasks")` + frontend normalization/filtering |
+| `tasks.list` | List all tasks via summary projection; filtering/grouping happens in frontend controllers and views | — | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query_summary(collectionId:"col_tasks")` + frontend summary normalization/filtering |
+| `tasks.get` | Hydrate a single task with full markdown body for detail/edit views | `id` | `Task \| undefined` | Shared TaskDetail host lazy hydration path | `vault_read(page_id)` + frontend normalization |
 | `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:"FS", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `task_update_atomic(request)` for the hot path; legacy compatibility remains `page_update_props(page_id, props)` + `page_update_body(page_id, body)` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `vault_delete(page_id)` |
 
@@ -78,7 +81,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `vault.getRoot` | Get the vault page tree projection used by the Notes UI | — | `FileNode[]` | NotesLibrary file tree, RightDrawer retrieval exclusion picker | `vault_list()` + frontend `pageToFileNode` projection |
+| `vault.getRoot` | Get the vault page tree projection used by the Notes UI without hydrating inline markdown bodies | — | `FileNode[]` | NotesLibrary file tree, RightDrawer retrieval exclusion picker | `vault_list_summary()` + frontend `pageSummaryToFileNode` projection |
 | `vault.getFileContent` | Get a note/page normalized into the frontend `Note` shape | `id` | `Note \| undefined` | NotesLibrary note viewer, RightDrawer | `vault_read(page_id)` + frontend `pageToNote` projection |
 | `notes.create` | Create a Cortex-managed note from frontend note content | `title`, `content`, `tags?` | `Note` | Save-as-Cortex flow for linked notes | `vault_create_page(kind:"note", props, body)` + frontend `pageToNote` projection |
 | `notes.update` | Persist Cortex-managed note body changes | `id`, `content` | `void` | NotesLibrary editor save/autosave | `save_commit(request: { page_id, body })` |
@@ -103,12 +106,14 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Notes |
 |---------|-------------|----------------|----------------|-------|
+| `collection_query_summary` | List page summaries for a collection | `collection_id` | `PageSummary[]` | Additive metadata-only projection for task/list surfaces; preserves props + body excerpt/length while omitting full body payloads. |
 | `vault_create_page` | Create a page in EAV + vault markdown | `kind`, `props`, `body?` | `Page` | `props.title` is canonical title input. Optional top-level `title` is compatibility-only and not required by FE/contracts payloads. |
 | `task_update_atomic` | Update a task’s props/title/body in one mutation/finalize pass | `request: { page_id, props, title?, body?, preserve_body? }` | `Page` | Additive hot-path command for optimistic task toggles, schedule edits, and other task mutations that should avoid a separate `page_update_body` roundtrip. |
 | `page_update_body` | Update page markdown body | `page_id`, `body` | `Page` | Persists DB body and rewrites markdown file under active vault root. |
 | `save_commit` | Durable save+index operation | `request: { page_id, body }` | `Page` | Persists DB body, rewrites canonical markdown for Cortex-managed pages, then enqueues/coalesces indexing jobs. |
 | `vault_delete` | Delete page and markdown | `page_id` | `void` | Deletes the corresponding markdown file path before DB removal. |
 | `vault_open_in_native_editor` | Open backing markdown path in OS app | `page_id` | `void` | Resolves Cortex vault files or linked Obsidian source files without mutation. |
+| `vault_list_summary` | List page summaries for vault/tree surfaces | `kind?` | `PageSummary[]` | Additive metadata-only vault listing for file-tree and picker surfaces; omits full body payloads. |
 | `vault_markdown_metadata_audit` | Audit markdown parity vs DB page state | `request?` | `VaultMarkdownMetadataAuditResult` | Additive diagnostics command; reports missing frontmatter/missing files/conflicts. |
 | `vault_markdown_metadata_repair` | Explicit markdown parity repair | `request?` | `VaultMarkdownMetadataRepairResult` | Additive maintenance command; rewrites canonical frontmatter for eligible Cortex pages. |
 
