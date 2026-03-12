@@ -14,7 +14,7 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 > |---|---|---|
 > | `tasks.create` | `vault_create_page(kind: "task", ...)` | Properties normalized to EAV |
 > | `tasks.list` | `collection_query(collectionId: "col_tasks")` | Filters via EAV properties |
-> | `tasks.update` | `page_update_props(pageId, props)` | Property updates via EAV |
+> | `tasks.update` | `vault_update_page(pageId, props, title?, body?)` | Combined hot-path page mutation |
 > | `tasks.delete` | `vault_delete(pageId)` | Removes .md file + index |
 > | ~~`schedule.getToday`~~ | `calendar.getToday` | **Removed** — ScheduleItem eliminated per ADR-0007; use `calendar.getToday` |
 > | ~~`schedule.addTask`~~ | `calendar.addEvent(type: "task")` | **Removed** — replaced by `calendar.addEvent` per ADR-0007 |
@@ -26,6 +26,8 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 Top-level command arguments passed from frontend `invoke()` use **camelCase** keys derived from Rust parameter names.
 
 - `collection_query(collection_id: String)` → `invoke('collection_query', { collectionId })`
+- `collection_query_summary(collection_id: String)` → `invoke('collection_query_summary', { collectionId })`
+- `project_milestones_list(project_id: String)` → `invoke('project_milestones_list', { projectId })`
 - `calendar_get_week(start_date: Option<String>)` → `invoke('calendar_get_week', { startDate })`
 - `calendar_get_range(start_date: String, end_date: String)` → `invoke('calendar_get_range', { startDate, endDate })`
 - `travel_create_trip(start_date, end_date, budget?)` → `invoke('travel_create_trip', { startDate, endDate, budget })`
@@ -42,8 +44,8 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `vault_create_page(kind:"task", props, body)` |
-| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query("tasks")` |
-| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:\"FS\", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `page_update_props(page_id, props)` |
+| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query_summary("tasks")` for list metadata, `vault_read(page_id)` for full detail hydration |
+| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:\"FS\", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `vault_update_page(page_id, props, title?, body?)` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `vault_delete(page_id)` |
 
 ### Projects
@@ -53,13 +55,13 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `projects.create` | Create a project | `template_id?`, `title`, `description?`, `priority?` | `Project` | ProjectsIndex (new project) | `vault_create_page(kind:"project", props)` |
 | `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `collection_query("projects")` |
 | `projects.get` | Get project details | `id` | `ProjectDetail` | ProjectDetail view | `vault_read(page_id)` |
-| `projects.update` | Update project | `id`, updatable fields incl. status/priority/date-range, `artifacts`, `columns` (milestones are dual-write body + milestone pages) | `Project` | ProjectDetail (overview + timeline), ProjectsIndex cards | `page_update_props(page_id, props)` |
+| `projects.update` | Update project | `id`, updatable fields incl. status/priority/date-range, `artifacts`, `columns` (milestones are dual-write body + milestone pages) | `Project` | ProjectDetail (overview + timeline), ProjectsIndex cards | `vault_update_page(page_id, props, title?, body?)` |
 
 ### Project Milestones (Dual-Write)
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `projects.milestones.list` | List milestone pages for project | `project_id` | `ProjectMilestone[]` | ProjectDetail timeline + body sync | `collection_query(\"col_project_milestones\")` + frontend filter by `project_ref` |
+| `projects.milestones.list` | List milestone pages for project | `project_id` | `ProjectMilestone[]` | ProjectDetail timeline + body sync | `project_milestones_list(project_id)` |
 | `projects.milestones.create` | Create milestone page | `project_ref`, `title`, `target_date`, `status`, `dependencies[]`, `baseline_date?`, `completed_date?`, `checklist_anchor_id` | `ProjectMilestone` | Timeline add milestone, body→page sync | `vault_create_page(kind:\"project_milestone\", props)` |
 | `projects.milestones.update` | Update milestone page | `id` + updatable milestone fields | `ProjectMilestone` | Timeline edits, body checkbox/status sync | `page_update_props(page_id, props)` |
 | `projects.milestones.delete` | Delete milestone page | `id` | `void` | Timeline delete, body line delete sync | `vault_delete(page_id)` |
@@ -75,7 +77,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `vault.getRoot` | Get vault file tree | — | `FileNode[]` | NotesLibrary file tree | `VaultService::get_root` |
+| `vault.getRoot` | Get vault file tree | — | `FileNode[]` | NotesLibrary file tree | `vault_list_summary(kind?)` for metadata-only tree rows |
 | `vault.getFileContent` | Get note content | `id` | `Note` | NotesLibrary note viewer, RightDrawer | `VaultService::get_file_content` |
 | `notes.create` | Create a note | `title`, `content`, `path`, `tags?` | `Note` | NotesLibrary | `NoteService::create` |
 | `notes.update` | Update a note | `id`, `title?`, `content?`, `tags?` | `Note` | NotesLibrary | `NoteService::update` |
@@ -87,12 +89,16 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `index_queue_status` | Read indexing queue state for diagnostics/progress | `limit?` | `IndexQueueJob[]` | Debug/progress UI | `index_queue_status` |
 | `vault_markdown_metadata_audit` | Audit Cortex-managed markdown files for canonical frontmatter parity | `request?: { kinds?, include_external_mirrors?, limit? }` | `VaultMarkdownMetadataAuditResult` | Vault maintenance / diagnostics (Settings → Integrations) | `vault_markdown_metadata_audit` |
 | `vault_markdown_metadata_repair` | Rewrite Cortex-managed markdown files to canonical frontmatter + body (skip linked Obsidian) | `request?: { page_ids?, kinds?, include_external_mirrors?, force_conflicts?, limit? }` | `VaultMarkdownMetadataRepairResult` | Vault maintenance / explicit repair action (Settings → Integrations) | `vault_markdown_metadata_repair` |
+| `collection_query_summary` | Metadata-first collection list query | `collection_id` | `PageSummary[]` | Task list / other projection-first list surfaces | `collection_query_summary` |
+| `project_milestones_list` | Metadata-first project milestone list query | `project_id` | `PageSummary[]` | ProjectDetail milestone sync + timeline hydration | `project_milestones_list` |
+| `vault_list_summary` | Metadata-first vault list query | `kind?` | `PageSummary[]` | NotesLibrary explorer tree | `vault_list_summary` |
 
 ### Canonical Page Mutations (Phase 5 alignment)
 
 | Command | Description | Request fields | Response fields | Notes |
 |---------|-------------|----------------|----------------|-------|
 | `vault_create_page` | Create a page in EAV + vault markdown | `kind`, `props`, `body?` | `Page` | `props.title` is canonical title input. Optional top-level `title` is compatibility-only and not required by FE/contracts payloads. |
+| `vault_update_page` | Update page props/title/body in one mutation | `page_id`, `props`, `title?`, `body?` | `Page` | Reuses the canonical markdown sync path and emits one `page_updated` event. `body` omitted keeps current body; `null` clears it; string replaces it. |
 | `page_update_body` | Update page markdown body | `page_id`, `body` | `Page` | Persists DB body and rewrites markdown file under active vault root. |
 | `save_commit` | Durable save+index operation | `request: { page_id, body }` | `Page` | Persists DB body, rewrites canonical markdown for Cortex-managed pages, then enqueues/coalesces indexing jobs. |
 | `vault_delete` | Delete page and markdown | `page_id` | `void` | Deletes the corresponding markdown file path before DB removal. |
@@ -345,9 +351,9 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 >
 > | Action | Frontend entry point | IPC / persistence path |
 > |-|-|-|
-> | Schedule existing task from modal | `handleScheduleExistingTask` | `updateTask` + `calendar_schedule_task` |
+> | Schedule existing task from modal | `handleScheduleExistingTask` | `calendar_schedule_task` |
 > | Schedule new task from modal | `handleScheduleNewTask` | `addTask` (`vault_create_page(kind:"task")` with `start_time/end_time`) |
-> | Move/resize scheduled task | `handleDayflowEventUpdate` / `persistResizedItem` | `updateTask` (+ `calendar_reschedule_event` for Google-linked bridge events) |
+> | Move/resize scheduled task | `handleDayflowEventUpdate` / `persistResizedItem` | `updateTask` (backend bridge/outbox reconciliation owns local + Google sync side effects) |
 > | Move pure calendar event | `handleDayflowEventUpdate` | `updateCalendarEvent` / `calendar_reschedule_event` |
 >
 > **Stale-closure guard retained:**
@@ -525,7 +531,7 @@ Realtime frontend invalidation for Phase 3 uses Tauri event channels in addition
 | Event | Description | Payload fields | Frontend usage | Backend emitter |
 |-------|-------------|----------------|----------------|-----------------|
 | `page_created` | A page/entity was created | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-creation handlers (`vault_create_page`, `capture_save`, etc.) |
-| `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-update handlers (`page_update_props`, `page_update_body`, `habits_toggle`) |
+| `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-update handlers (`page_update_props`, `page_update_body`, `vault_update_page`, `habits_toggle`) |
 | `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | `vault_delete` |
 | `integrations_sync_progress` | Google Calendar sync lifecycle/progress updates | `phase`, `calendarId?`, `calendarName?`, `processed?`, `total?`, `message?` | Background sync status UX (WeekDashboard + Settings) | `integrations_trigger_sync` |
 | `obsidian_sync_progress` | Linked Obsidian vault sync lifecycle/progress updates | `phase`, `linkId`, `processed?`, `total?`, `message?`, `runId?`, `status?` | Settings linked-vault progress panel | linked-vault runtime + `obsidian_sync_now` |

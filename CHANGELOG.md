@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- Metadata-first list query contract surface:
+  - `collection_query_summary`
+  - `project_milestones_list`
+  - `vault_list_summary`
+- Combined page mutation command:
+  - `vault_update_page`
+
+### Changed
+- `tasks.list` docs now point to summary-list reads plus `vault_read(page_id)` for full task detail hydration.
+- `vault.getRoot` docs now point to metadata-only vault tree reads instead of full page hydration.
+- `tasks.update` and `projects.update` docs now point to the combined `vault_update_page` mutation path.
+- `projects.milestones.list` docs now point to a backend-filtered summary query instead of collection-wide client filtering.
+
 ## [0.10.13] — 2026-03-06
 
 ### Added
