@@ -92,6 +92,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `collection_query_summary` | Metadata-first collection list query | `collection_id` | `PageSummary[]` | Task list / other projection-first list surfaces | `collection_query_summary` |
 | `project_milestones_list` | Metadata-first project milestone list query | `project_id` | `PageSummary[]` | ProjectDetail milestone sync + timeline hydration | `project_milestones_list` |
 | `vault_list_summary` | Metadata-first vault list query | `kind?` | `PageSummary[]` | NotesLibrary explorer tree | `vault_list_summary` |
+| `dev_capture_write_consumer_trace_artifact` | Debug-only ADR-0042 trace persistence to the fixed integration evidence folder | `fileStem`, `vaultRoot`, `entries[]` | `string` absolute artifact path | Phase 7 validation harness / local evidence capture only | `dev_capture_write_consumer_trace_artifact` |
 
 ### Canonical Page Mutations (Phase 5 alignment)
 
