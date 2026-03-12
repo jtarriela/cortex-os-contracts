@@ -14,12 +14,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `vault_list_summary`
 - Combined page mutation command:
   - `vault_update_page`
+- Cookbook contract surface for ADR-0039:
+  - `recipes.get`
+  - `recipes.importPreview`
+  - `recipes.importCommit`
 
 ### Changed
 - `tasks.list` docs now point to summary-list reads plus `vault_read(page_id)` for full task detail hydration.
+- `projects.list` docs now point to summary-list reads plus `vault_read(page_id)` for full project detail hydration.
 - `vault.getRoot` docs now point to metadata-only vault tree reads instead of full page hydration.
+- `vault.getFileContent` docs now point to `vault_read(page_id)` for explicit note body hydration.
 - `tasks.update` and `projects.update` docs now point to the combined `vault_update_page` mutation path.
 - `projects.milestones.list` docs now point to a backend-filtered summary query instead of collection-wide client filtering.
+- Meals/Recipes contract docs now reflect the Cookbook split:
+  - `recipes.list` now accepts backend-side filter/sort request fields and returns `RecipeCardSummary[]`
+  - `recipes.create` / `recipes.update` now persist structured recipe sections and metadata instead of flat `ingredients[]` + `instructions`
+  - `recipes.delete` now documents cookbook ownership instead of the legacy Meals recipe card flow
+  - recipe import preview/commit semantics, deterministic markdown bodies, lazy legacy normalization, dedupe rules, and multimodal fallback are now documented
 
 ## [0.10.13] — 2026-03-06
 

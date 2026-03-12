@@ -2,7 +2,7 @@
 
 This matrix documents the public **IPC contract** for Cortex OS. Each command listed here is defined in the contracts crate (Rust) and has a corresponding TypeScript client generated for the frontend. The purpose of this matrix is to ensure that **frontend**, **contracts** and **backend** stay in sync: when adding a command in one layer, update this document and open paired pull requests in `cortex-os-frontend` and `cortex-os-backend`.
 
-**Source of truth:** Commands are derived from the frontend `dataService.ts` and `aiService.ts` API surface. Every async function the frontend calls will become an IPC command when the Tauri backend is wired.
+**Source of truth:** Commands are derived from the frontend `services/backend.ts` and `services/aiService.ts` API surface. Every async function the frontend calls will become an IPC command when the Tauri backend is wired.
 
 ## Naming Convention Reconciliation
 
@@ -53,7 +53,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `projects.create` | Create a project | `template_id?`, `title`, `description?`, `priority?` | `Project` | ProjectsIndex (new project) | `vault_create_page(kind:"project", props)` |
-| `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `collection_query("projects")` |
+| `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `collection_query_summary("projects")` for card metadata; `vault_read(page_id)` for detail open |
 | `projects.get` | Get project details | `id` | `ProjectDetail` | ProjectDetail view | `vault_read(page_id)` |
 | `projects.update` | Update project | `id`, updatable fields incl. status/priority/date-range, `artifacts`, `columns` (milestones are dual-write body + milestone pages) | `Project` | ProjectDetail (overview + timeline), ProjectsIndex cards | `vault_update_page(page_id, props, title?, body?)` |
 
@@ -78,7 +78,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `vault.getRoot` | Get vault file tree | — | `FileNode[]` | NotesLibrary file tree | `vault_list_summary(kind?)` for metadata-only tree rows |
-| `vault.getFileContent` | Get note content | `id` | `Note` | NotesLibrary note viewer, RightDrawer | `VaultService::get_file_content` |
+| `vault.getFileContent` | Get note content | `id` | `Note` | NotesLibrary note viewer, RightDrawer | `vault_read(page_id)` |
 | `notes.create` | Create a note | `title`, `content`, `path`, `tags?` | `Note` | NotesLibrary | `NoteService::create` |
 | `notes.update` | Update a note | `id`, `title?`, `content?`, `tags?` | `Note` | NotesLibrary | `NoteService::update` |
 | `vault_get_profile` | Read active vault onboarding profile | — | `VaultProfile \| null` | App bootstrap gate | `vault_get_profile` |
@@ -234,19 +234,34 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `goals.update` | Update a goal | `id`, updatable fields | `Goal` | Goals progress slider | `GoalService::update` |
 | `goals.getProgressSummary` | Goal rollup metrics | `projectId?` | `GoalProgressSummary` | Goals dashboard chart | `goals_get_progress_summary` |
 
-### Meals / Recipes
+### Meals / Cookbook
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `meals.list` | List meals | `date_range?` | `Meal[]` | Meals view | `MealService::list` |
-| `meals.create` | Log a meal | `date`, `type` (enum: `BREAKFAST\|LUNCH\|DINNER\|SNACK`), `description`, `recipe_id?`, `calories?` | `Meal` | Meals weekly planner slot | `MealService::create` |
-| `meals.update` | Update a meal | `id`, updatable Meal fields | `Meal` | Meals weekly planner | `MealService::update` |
-| `meals.delete` | Remove a meal | `id` | `void` | Meals planner slot replace | `MealService::delete` |
+| `meals.list` | List all meals; date-window filtering happens in frontend controllers and views | — | `Meal[]` | Meals view | `collection_query(collectionId:"col_meals")` + frontend normalization |
+| `meals.create` | Log a meal | `date`, `type` (enum: `BREAKFAST\|LUNCH\|DINNER\|SNACK`), `description`, `recipe_id?`, `calories?` | `Meal` | Meals weekly planner slot | `vault_create_page(kind:"meal", props)` + frontend normalization |
+| `meals.update` | Update a meal | `id`, updatable Meal fields | `Meal` | Meals weekly planner | `page_update_props(page_id, props)` |
+| `meals.delete` | Remove a meal | `id` | `void` | Meals planner slot replace | `vault_delete(page_id)` |
 | `meals.getNutritionSummary` | Date-window nutrition rollup | `startDate?`, `endDate?` | `MealsNutritionSummary` | Meals analytics cards | `meals_get_nutrition_summary` |
-| `recipes.list` | List recipes | `tags?` | `Recipe[]` | Meals recipe library | `RecipeService::list` |
-| `recipes.create` | Create a recipe | `title`, `ingredients`, `instructions`, `calories?`, `tags?`, `image_url?` | `Recipe` | Meals recipe form | `RecipeService::create` |
-| `recipes.update` | Update a recipe | `id`, updatable Recipe fields incl. `image_url` | `Recipe` | Meals recipe card (image upload) | `RecipeService::update` |
-| `recipes.delete` | Delete a recipe | `id` | `void` | Meals recipe card (planned) | `RecipeService::delete` |
+| `recipes.list` | List cookbook recipes with backend-side filtering and summary projection | `request?` (`query?`, `tags[]?`, `course?`, `cuisine?`, `difficulty?`, `sort? = updated_desc \| title_asc \| rating_desc`) | `RecipeCardSummary[]` | Cookbook library, Meals recipe picker | `recipes_list(request)` |
+| `recipes.get` | Load a cookbook recipe detail record with lazy legacy normalization | `recipeId` | `RecipeDetail` | Cookbook detail panel/editor bootstrap | `recipes_get(recipe_id)` |
+| `recipes.create` | Create a cookbook recipe from structured fields and deterministic markdown | `recipe` (`title`, `description?`, `imageUrl?`, `ingredientSections[]`, `directionSections[]`, `notes?`, `servings?`, `prepTimeMinutes?`, `cookTimeMinutes?`, `totalTimeMinutes?`, `nutrition?`, `tags[]`, `course?`, `cuisine?`, `difficulty?`, `rating?`, `sourceName?`, `sourceUrl?`, `importMetadata?`) | `RecipeDetail` | Cookbook create flow | `recipes_create(recipe)` |
+| `recipes.update` | Persist structured cookbook recipe props plus deterministic markdown body | `recipeId`, `recipe` (same shape as `recipes.create`) | `RecipeDetail` | Cookbook edit flow, legacy recipe normalize-on-write path | `recipes_update(recipe_id, recipe)` |
+| `recipes.delete` | Delete a cookbook recipe | `recipeId` | `void` | Cookbook detail actions | `recipes_delete(recipe_id)` |
+| `recipes.importPreview` | Preview-only recipe import from URL/text/image sources | `sources[]` (`kind = url \| text \| image_base64` + source payload fields) | `RecipeImportPreviewResult` (`candidates[]`, `warnings[]`, `stats`, `provider`, `previewGeneratedAt`) | Cookbook import tab preview/review | `recipes_import_preview(sources)` |
+| `recipes.importCommit` | Persist selected recipe-import candidates; create-only, no merges | `approvedCandidates[]` (`candidateId`, `recipe`, `dedupeKey?`, `selected?`, `edited?`) | `RecipeImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Cookbook import tab commit/direct-save | `recipes_import_commit(approved_candidates)` |
+
+> Cookbook semantics notes:
+> - `recipes.list` filtering and sorting are backend-owned; frontend must not emulate filter/sort logic client-side beyond request construction.
+> - `recipes.get` parses deterministic recipe markdown into `RecipeDetail` and lazily normalizes legacy flat recipes on read without write-back.
+> - `recipes.create` / `recipes.update` require a non-empty `title`, at least one ingredient item, and at least one direction step.
+> - New writes keep recipe storage on `kind: recipe` and persist both structured props and deterministic markdown body.
+> - Deterministic recipe markdown uses `## Ingredients`, `## Directions`, and optional `## Notes`; titled subsections are expressed with `###`.
+> - Preview/commit import follows the Travel model: `recipes.importPreview` never writes pages or enqueues indexing jobs.
+> - Duplicate detection is driven by `import_dedupe_key`: source URL wins when present; otherwise title + flattened ingredient text are hashed.
+> - URL imports use deterministic extraction first (`json-ld` / HTML heuristics), then normalize into cookbook fields.
+> - Image import is capped to frontend-selected screenshots and may degrade with warnings when no multimodal provider is configured.
+> - `recipes.importCommit` is create-only: duplicates and invalid candidates are skipped and reported row-by-row; existing recipes are never merged in v1.
 
 ### Workouts
 
