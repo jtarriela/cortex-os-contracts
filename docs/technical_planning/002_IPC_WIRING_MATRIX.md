@@ -35,6 +35,31 @@ Top-level command arguments passed from frontend `invoke()` use **camelCase** ke
 
 Nested `request` payloads keep their documented serde field names (snake_case).
 
+### Phase 0-3 Performance Transport Tranche
+
+The first implementation tranche of the performance-first refactor introduces explicit paginated view-model commands over the existing hot paths. These commands are intended to replace generic summary/full-page list reads on the hottest user-facing surfaces while preserving the page-centric write model.
+
+| Command | Request fields | Response | Purpose |
+|---|---|---|---|
+| `tasks_list_view` | `cursor?`, `limit?` | `CursorPage<TaskListRow>` | Performance-first task list transport for Tasks, Today, and other task-list consumers |
+| `projects_list_view` | `cursor?`, `limit?` | `CursorPage<ProjectListRow>` | Performance-first project-card/index transport |
+| `notes_tree_view` | `kind?`, `cursor?`, `limit?` | `CursorPage<NoteTreeNode>` | Performance-first metadata tree transport for Notes explorer |
+| `calendar_occurrences` | `start_date`, `end_date`, `cursor?`, `limit?` | `CursorPage<Page>` | Range-bounded schedule/calendar occurrence transport |
+| `search_query` | `query`, `cursor?`, `limit?` | `CursorPage<Page>` | Paginated search transport aligned with the future `SearchHit` path |
+| `page_detail` | `page_id` | `Page` | Canonical detail-open alias for explicit full page hydration |
+| `page_mutate` | `request: { page_id, props, title?, body? }` | `Page` | Canonical generic mutate alias for full or props-only page writes |
+| `view_projection_rebuild` | — | `{ pagesScanned, taskRows, projectRows, noteRows, calendarRows }` | Manual recovery command for rebuilding hot-surface projection tables from canonical `pages` rows |
+
+Current frontend migration note:
+
+- `getTasks` now targets `tasks_list_view`
+- `getProjects` now targets `projects_list_view`
+- `getVaultRoot` now targets `notes_tree_view`
+- `getTodaySchedule`, `getWeekEvents`, and `getCalendarRangeEvents` now target `calendar_occurrences`
+- `searchGlobal` now targets `search_query`
+- `getTaskById`, `getProjectById`, and `getFileContent` now target `page_detail`
+- task detail saves now target `page_mutate`
+
 ---
 
 ## Command Matrix
@@ -89,6 +114,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `index_queue_status` | Read indexing queue state for diagnostics/progress | `limit?` | `IndexQueueJob[]` | Debug/progress UI | `index_queue_status` |
 | `vault_markdown_metadata_audit` | Audit Cortex-managed markdown files for canonical frontmatter parity | `request?: { kinds?, include_external_mirrors?, limit? }` | `VaultMarkdownMetadataAuditResult` | Vault maintenance / diagnostics (Settings → Integrations) | `vault_markdown_metadata_audit` |
 | `vault_markdown_metadata_repair` | Rewrite Cortex-managed markdown files to canonical frontmatter + body (skip linked Obsidian) | `request?: { page_ids?, kinds?, include_external_mirrors?, force_conflicts?, limit? }` | `VaultMarkdownMetadataRepairResult` | Vault maintenance / explicit repair action (Settings → Integrations) | `vault_markdown_metadata_repair` |
+| `view_projection_rebuild` | Rebuild Tasks/Projects/Notes/Calendar projection tables from canonical page state | — | `ViewProjectionRebuildResult { pagesScanned, taskRows, projectRows, noteRows, calendarRows }` | Explicit maintenance / recovery action for performance read models | `view_projection_rebuild` |
 | `collection_query_summary` | Metadata-first collection list query | `collection_id` | `PageSummary[]` | Task list / other projection-first list surfaces | `collection_query_summary` |
 | `project_milestones_list` | Metadata-first project milestone list query | `project_id` | `PageSummary[]` | ProjectDetail milestone sync + timeline hydration | `project_milestones_list` |
 | `vault_list_summary` | Metadata-first vault list query | `kind?` | `PageSummary[]` | NotesLibrary explorer tree | `vault_list_summary` |
@@ -546,9 +572,9 @@ Realtime frontend invalidation for Phase 3 uses Tauri event channels in addition
 
 | Event | Description | Payload fields | Frontend usage | Backend emitter |
 |-------|-------------|----------------|----------------|-----------------|
-| `page_created` | A page/entity was created | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-creation handlers (`vault_create_page`, `capture_save`, etc.) |
-| `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-update handlers (`page_update_props`, `page_update_body`, `vault_update_page`, `habits_toggle`) |
-| `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | `vault_delete` |
+| `page_created` | A page/entity was created | `pageId`, `kind`, `updatedAt?`, `changeType="create"`, `projectionKinds[]` | `stores/realtimeStore.ts` subscription; narrows invalidation to affected projections before view-level refresh logic runs | Page-creation handlers (`vault_create_page`, `capture_save`, etc.) |
+| `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?`, `changeType="update"`, `projectionKinds[]` | `stores/realtimeStore.ts` subscription; narrows invalidation to affected projections before view-level refresh logic runs | Page-update handlers (`page_update_props`, `page_update_body`, `vault_update_page`, `page_mutate`, `habits_toggle`) |
+| `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?`, `changeType="delete"`, `projectionKinds[]` | `stores/realtimeStore.ts` subscription; narrows invalidation to affected projections before view-level refresh logic runs | `vault_delete` |
 | `integrations_sync_progress` | Google Calendar sync lifecycle/progress updates | `phase`, `calendarId?`, `calendarName?`, `processed?`, `total?`, `message?` | Background sync status UX (WeekDashboard + Settings) | `integrations_trigger_sync` |
 | `obsidian_sync_progress` | Linked Obsidian vault sync lifecycle/progress updates | `phase`, `linkId`, `processed?`, `total?`, `message?`, `runId?`, `status?` | Settings linked-vault progress panel | linked-vault runtime + `obsidian_sync_now` |
 | `ai_stream_chunk` | Streamed AI text chunk | `requestId`, `text` | `services/aiService.ts` streaming updates in RightDrawer | `ai_chat` |

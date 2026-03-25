@@ -12,6 +12,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `collection_query_summary`
   - `project_milestones_list`
   - `vault_list_summary`
+- View-model transport tranche for the phase 0-3 performance refactor:
+  - `tasks_list_view`
+  - `projects_list_view`
+  - `notes_tree_view`
+  - `calendar_occurrences`
+  - `search_query`
+  - `page_detail`
+  - `page_mutate`
+  - `view_projection_rebuild`
 - Combined page mutation command:
   - `vault_update_page`
 - Cookbook contract surface for ADR-0039:
@@ -21,10 +30,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - `tasks.list` docs now point to summary-list reads plus `vault_read(page_id)` for full task detail hydration.
+- `tasks.list` docs now also define `tasks_list_view` as the paginated performance-first task list transport, with `TaskListRow[]` semantics instead of generic collection summaries.
 - `projects.list` docs now point to summary-list reads plus `vault_read(page_id)` for full project detail hydration.
+- `projects.list` docs now also define `projects_list_view` as the paginated project-card transport.
 - `vault.getRoot` docs now point to metadata-only vault tree reads instead of full page hydration.
+- `vault.getRoot` docs now also define `notes_tree_view` as the paginated notes explorer transport.
 - `vault.getFileContent` docs now point to `vault_read(page_id)` for explicit note body hydration.
+- `vault.getFileContent` docs now point to `page_detail(page_id)` as the new canonical detail-open alias.
 - `tasks.update` and `projects.update` docs now point to the combined `vault_update_page` mutation path.
+- `page_created`, `page_updated`, and `page_deleted` payload docs now include additive `changeType` and `projectionKinds[]` metadata for narrower frontend invalidation.
+- Projection-backed view commands now document an explicit repair path via `view_projection_rebuild`, which rebuilds the Tasks/Projects/Notes/Calendar hot-surface read models from canonical `pages` rows.
+- Contracts now include a checked-in phase-0/3 binding spec plus local generator (`contracts/specs/phase03-view-bindings.json`, `contracts/scripts/generate-phase03-bindings.mjs`) and the frontend consumes the generated `phase03-bindings.ts` module for this command family.
 - `projects.milestones.list` docs now point to a backend-filtered summary query instead of collection-wide client filtering.
 - Meals/Recipes contract docs now reflect the Cookbook split:
   - `recipes.list` now accepts backend-side filter/sort request fields and returns `RecipeCardSummary[]`

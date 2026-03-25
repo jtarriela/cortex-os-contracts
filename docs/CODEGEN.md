@@ -72,13 +72,25 @@ export interface PageRef {
 
 ### Output Location
 
-Generated TypeScript is written to:
+Current checked-in generation output for the performance refactor tranche is written to:
 
 ```
-frontend/src/services/backend.ts
+frontend/services/generated/phase03-bindings.ts
 ```
 
-This file replaces the current `dataService.ts` as the frontend's data access layer. View components import from `backend.ts` instead of calling `dataService` functions.
+Source contract spec:
+
+```
+contracts/specs/phase03-view-bindings.json
+```
+
+Generator entrypoint:
+
+```
+node contracts/scripts/generate-phase03-bindings.mjs
+```
+
+The long-term target remains a full generated backend client surface, but the current phase-0/3 slice already uses a generated module for the hot-surface command set instead of hand-maintaining those bindings inside `frontend/services/backend.ts`.
 
 ---
 
@@ -88,7 +100,7 @@ This file replaces the current `dataService.ts` as the frontend's data access la
 |---------|------|
 | `cargo tauri dev` | On backend code changes during development |
 | `cargo tauri build` | Before production build |
-| Manual | `cargo test -p cortex_core -- generate_bindings` (for CI) |
+| Manual | `node contracts/scripts/generate-phase03-bindings.mjs` (current phase-0/3 binding slice) |
 
 ---
 
@@ -99,7 +111,7 @@ Sometimes the generated types need augmentation:
 - **Computed fields** (e.g., `durationMinutes` derived from `start` and `end`) — add to a `frontend/src/services/backend.extensions.ts` file that re-exports generated types with added fields
 - **Frontend-only types** (e.g., UI state, animation flags) — define in `frontend/src/types.ts`, never in the generated file
 
-**Rule:** Never edit `backend.ts` directly. It is regenerated on every build.
+**Rule:** Never edit generated binding files directly. Update the contract source/spec and regenerate instead.
 
 ---
 
@@ -108,11 +120,11 @@ Sometimes the generated types need augmentation:
 The CI pipeline verifies that generated types are up-to-date:
 
 ```bash
-# Generate fresh bindings
-cargo test -p cortex_core -- generate_bindings
+# Generate fresh bindings for the current phase-0/3 command slice
+node contracts/scripts/generate-phase03-bindings.mjs
 
 # Check for uncommitted changes
-git diff --exit-code frontend/src/services/backend.ts
+git diff --exit-code frontend/services/generated/phase03-bindings.ts
 ```
 
 If the generated file differs from what's committed, the CI check fails. This ensures that:
@@ -144,12 +156,12 @@ If the generated file differs from what's committed, the CI check fails. This en
 
 ## 7) Transition from dataService.ts
 
-During Phase 1 IPC wiring:
+During the current performance refactor tranche:
 
-1. `backend.ts` is generated with typed invoke wrappers
-2. View components are updated to import from `backend.ts` instead of `dataService.ts`
-3. `dataService.ts` is gradually deprecated (functions removed as their `backend.ts` equivalents are verified)
-4. Once all views use `backend.ts`, `dataService.ts` is deleted
+1. `phase03-bindings.ts` is generated from `contracts/specs/phase03-view-bindings.json`
+2. `frontend/services/backend.ts` consumes that generated module for the new hot-surface commands
+3. Existing hand-maintained wrappers remain only for legacy/non-migrated command surfaces
+4. Future phases can widen generation scope until the whole backend client is generated
 
 The test strategy (ADR-0012) ensures that tests written against `dataService.ts` contracts transfer seamlessly — the test assertions remain valid, only the import path changes.
 
