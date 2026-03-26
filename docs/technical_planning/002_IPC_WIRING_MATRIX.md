@@ -2,18 +2,18 @@
 
 This matrix documents the public **IPC contract** for Cortex OS. Each command listed here is defined in the contracts crate (Rust) and has a corresponding TypeScript client generated for the frontend. The purpose of this matrix is to ensure that **frontend**, **contracts** and **backend** stay in sync: when adding a command in one layer, update this document and open paired pull requests in `cortex-os-frontend` and `cortex-os-backend`.
 
-**Source of truth:** Commands are derived from the frontend `dataService.ts` and `aiService.ts` API surface. Every async function the frontend calls will become an IPC command when the Tauri backend is wired.
+**Source of truth:** Commands are derived from the frontend `services/backend.ts` and `services/aiService.ts` API surface. Every async function the frontend calls will become an IPC command when the Tauri backend is wired.
 
 ## Naming Convention Reconciliation
 
 > **Note (ADR-0006, ADR-0007):** The command names below use dot-notation with domain-specific namespaces (e.g., `tasks.create`, `journal.list`). Per ADR-0006, the production backend uses the EAV/Page model where all entities are pages. The target-state IPC surface uses **snake_case page-centric commands** as defined in `001_architecture.md` Section 6.2 (e.g., `vault_create_page`, `collection_query`, `page_update_props`).
 >
-> The domain-specific commands below are **Phase 0 bridge commands** — they document the frontend's `services/backend.ts` API surface mapped to EAV page-centric commands. **Phase 1 IPC wiring is complete** — all domain operations go through the generic EAV command surface:
+> The domain-specific commands below are **Phase 0 bridge commands** — they document the frontend's historical `services/backend.ts` API surface mapped to the production page-centric commands. After ADR-0043 Phase 6, **hot-surface reads no longer default to the generic EAV list commands**. Tasks, Projects, Notes, Calendar, Command Palette, and Right Drawer search now route through the generated view transports plus `page_detail` / `page_mutate`, while lower-traffic domains may still use the generic EAV command surface:
 >
 > | Bridge Command | Target Command | Notes |
 > |---|---|---|
 > | `tasks.create` | `vault_create_page(kind: "task", ...)` | Properties normalized to EAV |
-> | `tasks.list` | `collection_query(collectionId: "col_tasks")` | Filters via EAV properties |
+> | `tasks.list` | `tasks_list_view(cursor?, limit?)` | Hot-path task list transport; full task bodies load through `page_detail` |
 > | `tasks.update` | `vault_update_page(pageId, props, title?, body?)` | Combined hot-path page mutation |
 > | `tasks.delete` | `vault_delete(pageId)` | Removes .md file + index |
 > | ~~`schedule.getToday`~~ | `calendar.getToday` | **Removed** — ScheduleItem eliminated per ADR-0007; use `calendar.getToday` |
@@ -35,6 +35,43 @@ Top-level command arguments passed from frontend `invoke()` use **camelCase** ke
 
 Nested `request` payloads keep their documented serde field names (snake_case).
 
+### Phase 6 Memory / Payload / Invalidation Transport Tranche
+
+Phase 6 keeps the hot-surface command names stable while resetting their transport contracts around generated view DTOs, opaque paging, and projection-aware realtime invalidation. These commands replace the remaining heavy payload paths on Tasks, Projects, Notes, Calendar, Command Palette, and Right Drawer search while preserving `page_detail` / `page_mutate` as the full-detail read/write path.
+
+Shared paging contract:
+
+| Type | Fields | Notes |
+|---|---|---|
+| `ViewPage<T>` | `items`, `nextCursor?`, `totalApprox?`, `snapshotToken` | `nextCursor` is opaque backend-issued paging state; callers must not derive it from page ids. `snapshotToken` changes when membership or ordering for the query/range changes, and consumers must reset append state on mismatch. On mismatch, the supported recovery path is restart-from-first-page for that query/range; suffix replacement against an old cursor chain is not supported. For `search_query`, the snapshot also covers ranked membership/order changes for the active query so stale cursors cannot continue appending into a changed ranking. |
+
+| Command | Request fields | Response | Purpose |
+|---|---|---|---|
+| `tasks_list_view` | `cursor?`, `limit?` | `ViewPage<SummaryViewRow>` | Performance-first task list transport for Tasks, Today, and other task-list consumers |
+| `projects_list_view` | `cursor?`, `limit?` | `ViewPage<SummaryViewRow>` | Performance-first project-card/index transport |
+| `notes_tree_view` | `kind?`, `cursor?`, `limit?` | `ViewPage<SummaryViewRow>` | Performance-first metadata tree transport for Notes explorer |
+| `calendar_occurrences` | `start_date`, `end_date`, `cursor?`, `limit?` | `ViewPage<CalendarOccurrenceRow>` | Range-bounded schedule/calendar occurrence transport without full `Page.body` hydration. Phase 6 invalidation metadata for `projection="calendar"` is intentionally narrowed to rows actually served by `calendar_occurrence_projection` today; callers must not treat it as a generic fanout for every schedule-adjacent page kind. |
+| `search_query` | `query`, `cursor?`, `limit?` | `ViewPage<SearchHitRow>` | Paginated search transport without full `Page.body` hydration. Pagination is traversable across the full ranked result set for the current snapshot; it is not limited to a fixed candidate window. |
+| `page_detail` | `page_id` | `Page` | Canonical detail-open alias for explicit full page hydration |
+| `page_mutate` | `request: { page_id, props, title?, body? }` | `Page` | Canonical generic mutate alias for full or props-only page writes |
+| `view_projection_rebuild` | — | `{ pagesScanned, taskRows, projectRows, noteRows, calendarRows }` | Manual recovery command for rebuilding hot-surface projection tables from canonical `pages` rows |
+
+Phase 6 generated transport types:
+
+- `SummaryViewRow` is the shared metadata row for tasks/projects/notes list/tree surfaces.
+- `CalendarOccurrenceRow` is the schedule-render DTO for calendar/task occurrences and intentionally omits markdown body transport.
+- `SearchHitRow` is the search-result DTO for Command Palette and Right Drawer search and intentionally omits markdown body transport.
+
+Current frontend migration note:
+
+- `getTasks` now targets `tasks_list_view`
+- `getProjects` now targets `projects_list_view`
+- `getVaultRoot` now targets `notes_tree_view`
+- `getTodaySchedule`, `getWeekEvents`, and `getCalendarRangeEvents` now target `calendar_occurrences`
+- `searchGlobal` now targets `search_query`
+- `getTaskById`, `getProjectById`, and `getFileContent` now target `page_detail`
+- task detail saves now target `page_mutate`
+
 ---
 
 ## Command Matrix
@@ -44,7 +81,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `vault_create_page(kind:"task", props, body)` |
-| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query_summary("tasks")` for list metadata, `vault_read(page_id)` for full detail hydration |
+| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `tasks_list_view(cursor?, limit?)` for hot-path list metadata, `page_detail(page_id)` for full detail hydration |
 | `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:\"FS\", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `vault_update_page(page_id, props, title?, body?)` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `vault_delete(page_id)` |
 
@@ -53,7 +90,7 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `projects.create` | Create a project | `template_id?`, `title`, `description?`, `priority?` | `Project` | ProjectsIndex (new project) | `vault_create_page(kind:"project", props)` |
-| `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `collection_query("projects")` |
+| `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `projects_list_view(cursor?, limit?)` for hot-path card metadata; `page_detail(page_id)` for detail open |
 | `projects.get` | Get project details | `id` | `ProjectDetail` | ProjectDetail view | `vault_read(page_id)` |
 | `projects.update` | Update project | `id`, updatable fields incl. status/priority/date-range, `artifacts`, `columns` (milestones are dual-write body + milestone pages) | `Project` | ProjectDetail (overview + timeline), ProjectsIndex cards | `vault_update_page(page_id, props, title?, body?)` |
 
@@ -77,8 +114,8 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `vault.getRoot` | Get vault file tree | — | `FileNode[]` | NotesLibrary file tree | `vault_list_summary(kind?)` for metadata-only tree rows |
-| `vault.getFileContent` | Get note content | `id` | `Note` | NotesLibrary note viewer, RightDrawer | `VaultService::get_file_content` |
+| `vault.getRoot` | Get vault file tree | — | `FileNode[]` | NotesLibrary file tree | `notes_tree_view(kind?, cursor?, limit?)` for hot-path metadata rows |
+| `vault.getFileContent` | Get note content | `id` | `Note` | NotesLibrary note viewer, RightDrawer | `page_detail(page_id)` |
 | `notes.create` | Create a note | `title`, `content`, `path`, `tags?` | `Note` | NotesLibrary | `NoteService::create` |
 | `notes.update` | Update a note | `id`, `title?`, `content?`, `tags?` | `Note` | NotesLibrary | `NoteService::update` |
 | `vault_get_profile` | Read active vault onboarding profile | — | `VaultProfile \| null` | App bootstrap gate | `vault_get_profile` |
@@ -89,9 +126,10 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `index_queue_status` | Read indexing queue state for diagnostics/progress | `limit?` | `IndexQueueJob[]` | Debug/progress UI | `index_queue_status` |
 | `vault_markdown_metadata_audit` | Audit Cortex-managed markdown files for canonical frontmatter parity | `request?: { kinds?, include_external_mirrors?, limit? }` | `VaultMarkdownMetadataAuditResult` | Vault maintenance / diagnostics (Settings → Integrations) | `vault_markdown_metadata_audit` |
 | `vault_markdown_metadata_repair` | Rewrite Cortex-managed markdown files to canonical frontmatter + body (skip linked Obsidian) | `request?: { page_ids?, kinds?, include_external_mirrors?, force_conflicts?, limit? }` | `VaultMarkdownMetadataRepairResult` | Vault maintenance / explicit repair action (Settings → Integrations) | `vault_markdown_metadata_repair` |
-| `collection_query_summary` | Metadata-first collection list query | `collection_id` | `PageSummary[]` | Task list / other projection-first list surfaces | `collection_query_summary` |
+| `view_projection_rebuild` | Rebuild Tasks/Projects/Notes/Calendar projection tables from canonical page state | — | `ViewProjectionRebuildResult { pagesScanned, taskRows, projectRows, noteRows, calendarRows }` | Explicit maintenance / recovery action for performance read models | `view_projection_rebuild` |
+| `collection_query_summary` | Metadata-first generic collection list query | `collection_id` | `PageSummary[]` | Retained non-hot-surface / legacy collection metadata reads | `collection_query_summary` |
 | `project_milestones_list` | Metadata-first project milestone list query | `project_id` | `PageSummary[]` | ProjectDetail milestone sync + timeline hydration | `project_milestones_list` |
-| `vault_list_summary` | Metadata-first vault list query | `kind?` | `PageSummary[]` | NotesLibrary explorer tree | `vault_list_summary` |
+| `vault_list_summary` | Metadata-first generic vault list query | `kind?` | `PageSummary[]` | Retained non-hot-surface vault metadata reads | `vault_list_summary` |
 | `dev_capture_write_consumer_trace_artifact` | Debug-only ADR-0042 trace persistence to the fixed integration evidence folder | `fileStem`, `vaultRoot`, `entries[]` | `string` absolute artifact path | Phase 7 validation harness / local evidence capture only | `dev_capture_write_consumer_trace_artifact` |
 
 ### Canonical Page Mutations (Phase 5 alignment)
@@ -234,19 +272,34 @@ Nested `request` payloads keep their documented serde field names (snake_case).
 | `goals.update` | Update a goal | `id`, updatable fields | `Goal` | Goals progress slider | `GoalService::update` |
 | `goals.getProgressSummary` | Goal rollup metrics | `projectId?` | `GoalProgressSummary` | Goals dashboard chart | `goals_get_progress_summary` |
 
-### Meals / Recipes
+### Meals / Cookbook
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `meals.list` | List meals | `date_range?` | `Meal[]` | Meals view | `MealService::list` |
-| `meals.create` | Log a meal | `date`, `type` (enum: `BREAKFAST\|LUNCH\|DINNER\|SNACK`), `description`, `recipe_id?`, `calories?` | `Meal` | Meals weekly planner slot | `MealService::create` |
-| `meals.update` | Update a meal | `id`, updatable Meal fields | `Meal` | Meals weekly planner | `MealService::update` |
-| `meals.delete` | Remove a meal | `id` | `void` | Meals planner slot replace | `MealService::delete` |
+| `meals.list` | List all meals; date-window filtering happens in frontend controllers and views | — | `Meal[]` | Meals view | `collection_query(collectionId:"col_meals")` + frontend normalization |
+| `meals.create` | Log a meal | `date`, `type` (enum: `BREAKFAST\|LUNCH\|DINNER\|SNACK`), `description`, `recipe_id?`, `calories?` | `Meal` | Meals weekly planner slot | `vault_create_page(kind:"meal", props)` + frontend normalization |
+| `meals.update` | Update a meal | `id`, updatable Meal fields | `Meal` | Meals weekly planner | `page_update_props(page_id, props)` |
+| `meals.delete` | Remove a meal | `id` | `void` | Meals planner slot replace | `vault_delete(page_id)` |
 | `meals.getNutritionSummary` | Date-window nutrition rollup | `startDate?`, `endDate?` | `MealsNutritionSummary` | Meals analytics cards | `meals_get_nutrition_summary` |
-| `recipes.list` | List recipes | `tags?` | `Recipe[]` | Meals recipe library | `RecipeService::list` |
-| `recipes.create` | Create a recipe | `title`, `ingredients`, `instructions`, `calories?`, `tags?`, `image_url?` | `Recipe` | Meals recipe form | `RecipeService::create` |
-| `recipes.update` | Update a recipe | `id`, updatable Recipe fields incl. `image_url` | `Recipe` | Meals recipe card (image upload) | `RecipeService::update` |
-| `recipes.delete` | Delete a recipe | `id` | `void` | Meals recipe card (planned) | `RecipeService::delete` |
+| `recipes.list` | List cookbook recipes with backend-side filtering and summary projection | `request?` (`query?`, `tags[]?`, `course?`, `cuisine?`, `difficulty?`, `sort? = updated_desc \| title_asc \| rating_desc`) | `RecipeCardSummary[]` | Cookbook library, Meals recipe picker | `recipes_list(request)` |
+| `recipes.get` | Load a cookbook recipe detail record with lazy legacy normalization | `recipeId` | `RecipeDetail` | Cookbook detail panel/editor bootstrap | `recipes_get(recipe_id)` |
+| `recipes.create` | Create a cookbook recipe from structured fields and deterministic markdown | `recipe` (`title`, `description?`, `imageUrl?`, `ingredientSections[]`, `directionSections[]`, `notes?`, `servings?`, `prepTimeMinutes?`, `cookTimeMinutes?`, `totalTimeMinutes?`, `nutrition?`, `tags[]`, `course?`, `cuisine?`, `difficulty?`, `rating?`, `sourceName?`, `sourceUrl?`, `importMetadata?`) | `RecipeDetail` | Cookbook create flow | `recipes_create(recipe)` |
+| `recipes.update` | Persist structured cookbook recipe props plus deterministic markdown body | `recipeId`, `recipe` (same shape as `recipes.create`) | `RecipeDetail` | Cookbook edit flow, legacy recipe normalize-on-write path | `recipes_update(recipe_id, recipe)` |
+| `recipes.delete` | Delete a cookbook recipe | `recipeId` | `void` | Cookbook detail actions | `recipes_delete(recipe_id)` |
+| `recipes.importPreview` | Preview-only recipe import from URL/text/image sources | `sources[]` (`kind = url \| text \| image_base64` + source payload fields) | `RecipeImportPreviewResult` (`candidates[]`, `warnings[]`, `stats`, `provider`, `previewGeneratedAt`) | Cookbook import tab preview/review | `recipes_import_preview(sources)` |
+| `recipes.importCommit` | Persist selected recipe-import candidates; create-only, no merges | `approvedCandidates[]` (`candidateId`, `recipe`, `dedupeKey?`, `selected?`, `edited?`) | `RecipeImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Cookbook import tab commit/direct-save | `recipes_import_commit(approved_candidates)` |
+
+> Cookbook semantics notes:
+> - `recipes.list` filtering and sorting are backend-owned; frontend must not emulate filter/sort logic client-side beyond request construction.
+> - `recipes.get` parses deterministic recipe markdown into `RecipeDetail` and lazily normalizes legacy flat recipes on read without write-back.
+> - `recipes.create` / `recipes.update` require a non-empty `title`, at least one ingredient item, and at least one direction step.
+> - New writes keep recipe storage on `kind: recipe` and persist both structured props and deterministic markdown body.
+> - Deterministic recipe markdown uses `## Ingredients`, `## Directions`, and optional `## Notes`; titled subsections are expressed with `###`.
+> - Preview/commit import follows the Travel model: `recipes.importPreview` never writes pages or enqueues indexing jobs.
+> - Duplicate detection is driven by `import_dedupe_key`: source URL wins when present; otherwise title + flattened ingredient text are hashed.
+> - URL imports use deterministic extraction first (`json-ld` / HTML heuristics), then normalize into cookbook fields.
+> - Image import is capped to frontend-selected screenshots and may degrade with warnings when no multimodal provider is configured.
+> - `recipes.importCommit` is create-only: duplicates and invalid candidates are skipped and reported row-by-row; existing recipes are never merged in v1.
 
 ### Workouts
 
@@ -527,13 +580,19 @@ Embedding provider options:
 
 ## Event Streams
 
-Realtime frontend invalidation for Phase 3 uses Tauri event channels in addition to request/response commands.
+Realtime frontend invalidation for Phase 6 uses Tauri event channels in addition to request/response commands.
+
+Shared projection-impact payload shape:
+
+| Type | Fields | Notes |
+|---|---|---|
+| `PageEvent` | `pageId`, `kind`, `updatedAt?`, `changeType`, `effects[]` | `effects[]` entries are `{ projection, impact }`, where `projection ∈ { tasks, projects, notes, calendar, search }` and `impact ∈ { membership, order, summary, detail }`. These effects are projection-membership based, not kind-only: a page event may carry effects for projections fed by that page even when `kind` differs from the consuming surface. `projection="calendar"` is narrowed to what `calendar_occurrence_projection` actually serves today rather than every schedule-adjacent page kind. `projectionKinds[]` may remain as compatibility metadata during migration, but `effects[]` is the Phase 6 source of truth. Same-page mutations observed inside the backend debounce window may be merged into one emitted `PageEvent`; consumers must treat the delivered payload as the merged/latest invalidation unit for that page, not as a lossless per-write event log. |
 
 | Event | Description | Payload fields | Frontend usage | Backend emitter |
 |-------|-------------|----------------|----------------|-----------------|
-| `page_created` | A page/entity was created | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-creation handlers (`vault_create_page`, `capture_save`, etc.) |
-| `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | Page-update handlers (`page_update_props`, `page_update_body`, `vault_update_page`, `habits_toggle`) |
-| `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?` | `stores/realtimeStore.ts` subscription; triggers view invalidation/remount in `App.tsx` | `vault_delete` |
+| `page_created` | A page/entity was created | `pageId`, `kind`, `updatedAt?`, `changeType="create"`, `effects[]` | `stores/realtimeStore.ts` subscription; `membership` / `order` effects invalidate only the affected visible page/range/query, while `summary` / `detail` effects drive targeted patching. Same-page writes inside the debounce window may be coalesced before delivery. | Page-creation handlers (`vault_create_page`, `capture_save`, etc.) |
+| `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?`, `changeType="update"`, `effects[]` | `stores/realtimeStore.ts` subscription; `summary` effects patch cached projection rows, `detail` effects refresh only open detail caches. Same-page writes inside the debounce window may be coalesced before delivery. | Page-update handlers (`page_update_props`, `page_update_body`, `vault_update_page`, `page_mutate`, `habits_toggle`) |
+| `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?`, `changeType="delete"`, `effects[]` | `stores/realtimeStore.ts` subscription; deletes in-range/in-page cached rows locally when possible, otherwise invalidates the affected projection cache. Same-page writes inside the debounce window may be coalesced before delivery. | `vault_delete` |
 | `integrations_sync_progress` | Google Calendar sync lifecycle/progress updates | `phase`, `calendarId?`, `calendarName?`, `processed?`, `total?`, `message?` | Background sync status UX (WeekDashboard + Settings) | `integrations_trigger_sync` |
 | `obsidian_sync_progress` | Linked Obsidian vault sync lifecycle/progress updates | `phase`, `linkId`, `processed?`, `total?`, `message?`, `runId?`, `status?` | Settings linked-vault progress panel | linked-vault runtime + `obsidian_sync_now` |
 | `ai_stream_chunk` | Streamed AI text chunk | `requestId`, `text` | `services/aiService.ts` streaming updates in RightDrawer | `ai_chat` |

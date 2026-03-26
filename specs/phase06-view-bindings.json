@@ -1,0 +1,160 @@
+{
+  "source": "Phase 6 memory, payload, and invalidation hardening transport",
+  "types": [
+    {
+      "name": "Page",
+      "fields": [
+        "page_id: string;",
+        "kind: string;",
+        "path: string;",
+        "title: string;",
+        "body: string | null;",
+        "props: Record<string, unknown>;",
+        "created_at: string;",
+        "updated_at: string;"
+      ]
+    },
+    {
+      "name": "ViewPage<T>",
+      "fields": [
+        "items: T[];",
+        "nextCursor?: string;",
+        "totalApprox?: number;",
+        "snapshotToken: string;"
+      ]
+    },
+    {
+      "name": "SummaryViewRow",
+      "fields": [
+        "pageId: string;",
+        "kind: string;",
+        "path: string;",
+        "title: string;",
+        "bodyExcerpt?: string | null;",
+        "bodyHash?: string | null;",
+        "bodyLength?: number | null;",
+        "props: Record<string, unknown>;",
+        "createdAt: string;",
+        "updatedAt: string;"
+      ]
+    },
+    {
+      "name": "CalendarOccurrenceRow",
+      "fields": [
+        "pageId: string;",
+        "kind: string;",
+        "path: string;",
+        "title: string;",
+        "start: string;",
+        "end: string;",
+        "eventType: string;",
+        "color?: string | null;",
+        "description?: string | null;",
+        "location?: string | null;",
+        "linkedNoteId?: string | null;",
+        "taskId?: string | null;",
+        "calendarId?: string | null;",
+        "source?: string | null;",
+        "calendarName?: string | null;",
+        "syncExternal?: boolean | null;",
+        "readOnly?: boolean | null;",
+        "googleSynced: boolean;",
+        "allDay?: boolean | null;",
+        "habitGenerated?: boolean | null;",
+        "habitId?: string | null;",
+        "habitReviewId?: string | null;",
+        "habitPlanInstanceId?: string | null;",
+        "habitPrepEnvironmentChecklistItems?: string[] | null;",
+        "habitPrepNotes?: string | null;",
+        "habitPrepWeekStartDate?: string | null;",
+        "rawProps: Record<string, unknown>;",
+        "createdAt: string;",
+        "updatedAt: string;"
+      ]
+    },
+    {
+      "name": "SearchHitRow",
+      "fields": [
+        "pageId: string;",
+        "kind: string;",
+        "path: string;",
+        "title: string;",
+        "resultType: string;",
+        "subtitle?: string | null;",
+        "preview?: string | null;",
+        "graphNeighbors?: string[] | null;",
+        "createdAt: string;",
+        "updatedAt: string;"
+      ]
+    },
+    {
+      "name": "PageMutateRequest",
+      "fields": [
+        "pageId: string;",
+        "props: Record<string, unknown>;",
+        "title?: string;",
+        "body?: string | null;"
+      ]
+    },
+    {
+      "name": "ViewProjectionRebuildResult",
+      "fields": [
+        "pagesScanned: number;",
+        "taskRows: number;",
+        "projectRows: number;",
+        "noteRows: number;",
+        "calendarRows: number;"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "name": "tasks_list_view",
+      "signature": "(cursor?: string, limit = 500): Promise<ViewPage<SummaryViewRow>>",
+      "retry": true,
+      "requestExpression": "{ ...(cursor ? { cursor } : {}), limit }"
+    },
+    {
+      "name": "projects_list_view",
+      "signature": "(cursor?: string, limit = 500): Promise<ViewPage<SummaryViewRow>>",
+      "retry": true,
+      "requestExpression": "{ ...(cursor ? { cursor } : {}), limit }"
+    },
+    {
+      "name": "notes_tree_view",
+      "signature": "(kind?: string, cursor?: string, limit = 500): Promise<ViewPage<SummaryViewRow>>",
+      "retry": true,
+      "requestExpression": "{ ...(kind ? { kind } : {}), ...(cursor ? { cursor } : {}), limit }"
+    },
+    {
+      "name": "page_mutate",
+      "signature": "(request: PageMutateRequest): Promise<Page>",
+      "retry": false,
+      "requestExpression": "{ request }"
+    },
+    {
+      "name": "page_detail",
+      "signature": "(pageId: string): Promise<Page>",
+      "retry": false,
+      "requestExpression": "{ pageId }"
+    },
+    {
+      "name": "calendar_occurrences",
+      "signature": "(startDate: Date, endDate: Date, cursor?: string, limit = 500): Promise<ViewPage<CalendarOccurrenceRow>>",
+      "retry": true,
+      "requestExpression": "{ startDate: startDate.toISOString(), endDate: endDate.toISOString(), ...(cursor ? { cursor } : {}), limit }"
+    },
+    {
+      "name": "search_query",
+      "signature": "(query: string, cursor?: string, limit = 50): Promise<ViewPage<SearchHitRow>>",
+      "retry": true,
+      "requestExpression": "{ query, ...(cursor ? { cursor } : {}), limit }"
+    },
+    {
+      "name": "view_projection_rebuild",
+      "signature": "(): Promise<ViewProjectionRebuildResult>",
+      "retry": false,
+      "requestExpression": "undefined"
+    }
+  ]
+}

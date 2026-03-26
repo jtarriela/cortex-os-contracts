@@ -29,7 +29,7 @@ Commands follow Tauri's convention of Rust function names exposed via `#[tauri::
 The frontend's `dataService.ts` currently uses domain-specific function names (e.g., `addTask`, `getCalendarEvents`). The contracts wiring matrix (`002_IPC_WIRING_MATRIX.md`) documents these as bridge commands with dot-notation (e.g., `tasks.create`). During Phase 1 IPC wiring, these map to the page-centric commands above:
 
 - `tasks.create` → `vault_create_page(kind: "task", ...)`
-- `tasks.list` → `collection_query(collection_id: "col_tasks", ...)`
+- `tasks.list` → `tasks_list_view(cursor?, limit?)` for migrated hot surfaces; generic `collection_query(collection_id: "col_tasks", ...)` remains available for non-hot-surface / legacy consumers
 
 See `001_architecture.md` Section 6.2 for the full target-state command surface.
 
@@ -79,7 +79,7 @@ interface ErrorResponse {
 
 ## 4) Pagination
 
-**Convention:** Cursor-based pagination using `page_id` of the last result.
+**Convention:** Cursor-based pagination using opaque backend-issued cursors for generated view transports and stable page-id-derived cursors only for older generic collection helpers that still expose them.
 
 ```typescript
 interface PaginatedRequest {
@@ -96,7 +96,7 @@ interface PaginatedResponse<T> {
 
 **Why cursor, not offset:** Offset-based pagination breaks when items are inserted/deleted between pages. Cursor-based pagination is stable and efficient with SQLite indexes.
 
-**Exception:** `collection_query()` uses cursor pagination by default. Small result sets (< 100 items) may omit pagination entirely.
+**Exception:** `collection_query()` uses cursor pagination by default. Small result sets (< 100 items) may omit pagination entirely. Migrated hot surfaces should prefer the generated `ViewPage<T>` transport family (`tasks_list_view`, `projects_list_view`, `notes_tree_view`, `calendar_occurrences`, `search_query`) with opaque `nextCursor` and `snapshotToken`.
 
 ---
 
