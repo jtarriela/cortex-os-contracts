@@ -49,11 +49,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Hot-surface paging docs now standardize on `ViewPage<T> { items, nextCursor, totalApprox?, snapshotToken }`, where:
   - `nextCursor` is opaque backend-issued paging state
   - `snapshotToken` changes when query/range membership or ordering changes
+  - snapshot mismatch recovery is restart-from-first-page for the affected query/range, not suffix replacement against a stale cursor chain
+  - `search_query` snapshot tokens also cover ranked membership/order changes for the active query
   - consumers must reset append state on snapshot mismatch instead of blindly appending
 - `page_created`, `page_updated`, and `page_deleted` payload docs now define `effects[]` projection-impact metadata as the Phase 6 source of truth:
   - `effects[]` entries are `{ projection, impact }`
   - `projection ∈ { tasks, projects, notes, calendar, search }`
   - `impact ∈ { membership, order, summary, detail }`
+  - `effects[]` are projection-membership based rather than kind-only, so a page can invalidate projections other than its own `kind`
+  - `projection="calendar"` is narrowed to what `calendar_occurrence_projection` actually serves today
+  - same-page writes inside the backend debounce window may be merged into one emitted event, so consumers must treat the delivered event as the latest merged invalidation unit
+- `search_query` docs now state that pagination traverses the full ranked result set for the current snapshot instead of stopping at a fixed candidate window.
 - Projection-backed view commands now document an explicit repair path via `view_projection_rebuild`, which rebuilds the Tasks/Projects/Notes/Calendar hot-surface read models from canonical `pages` rows.
 - Contracts/codegen docs now describe the checked-in Phase 6 generated binding surface (`phase06-bindings.ts`) used by the frontend for the hot-surface transport family, replacing the superseded Phase 3 slice.
 - `projects.milestones.list` docs now point to a backend-filtered summary query instead of collection-wide client filtering.
