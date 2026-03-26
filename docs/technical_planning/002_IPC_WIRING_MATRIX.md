@@ -35,20 +35,32 @@ Top-level command arguments passed from frontend `invoke()` use **camelCase** ke
 
 Nested `request` payloads keep their documented serde field names (snake_case).
 
-### Phase 0-3 Performance Transport Tranche
+### Phase 6 Memory / Payload / Invalidation Transport Tranche
 
-The first implementation tranche of the performance-first refactor introduces explicit paginated view-model commands over the existing hot paths. These commands are intended to replace generic summary/full-page list reads on the hottest user-facing surfaces while preserving the page-centric write model.
+Phase 6 keeps the hot-surface command names stable while resetting their transport contracts around generated view DTOs, opaque paging, and projection-aware realtime invalidation. These commands replace the remaining heavy payload paths on Tasks, Projects, Notes, Calendar, Command Palette, and Right Drawer search while preserving `page_detail` / `page_mutate` as the full-detail read/write path.
+
+Shared paging contract:
+
+| Type | Fields | Notes |
+|---|---|---|
+| `ViewPage<T>` | `items`, `nextCursor?`, `totalApprox?`, `snapshotToken` | `nextCursor` is opaque backend-issued paging state; callers must not derive it from page ids. `snapshotToken` changes when membership or ordering for the query/range changes, and consumers must reset append state on mismatch. |
 
 | Command | Request fields | Response | Purpose |
 |---|---|---|---|
-| `tasks_list_view` | `cursor?`, `limit?` | `CursorPage<TaskListRow>` | Performance-first task list transport for Tasks, Today, and other task-list consumers |
-| `projects_list_view` | `cursor?`, `limit?` | `CursorPage<ProjectListRow>` | Performance-first project-card/index transport |
-| `notes_tree_view` | `kind?`, `cursor?`, `limit?` | `CursorPage<NoteTreeNode>` | Performance-first metadata tree transport for Notes explorer |
-| `calendar_occurrences` | `start_date`, `end_date`, `cursor?`, `limit?` | `CursorPage<Page>` | Range-bounded schedule/calendar occurrence transport |
-| `search_query` | `query`, `cursor?`, `limit?` | `CursorPage<Page>` | Paginated search transport aligned with the future `SearchHit` path |
+| `tasks_list_view` | `cursor?`, `limit?` | `ViewPage<SummaryViewRow>` | Performance-first task list transport for Tasks, Today, and other task-list consumers |
+| `projects_list_view` | `cursor?`, `limit?` | `ViewPage<SummaryViewRow>` | Performance-first project-card/index transport |
+| `notes_tree_view` | `kind?`, `cursor?`, `limit?` | `ViewPage<SummaryViewRow>` | Performance-first metadata tree transport for Notes explorer |
+| `calendar_occurrences` | `start_date`, `end_date`, `cursor?`, `limit?` | `ViewPage<CalendarOccurrenceRow>` | Range-bounded schedule/calendar occurrence transport without full `Page.body` hydration |
+| `search_query` | `query`, `cursor?`, `limit?` | `ViewPage<SearchHitRow>` | Paginated search transport without full `Page.body` hydration |
 | `page_detail` | `page_id` | `Page` | Canonical detail-open alias for explicit full page hydration |
 | `page_mutate` | `request: { page_id, props, title?, body? }` | `Page` | Canonical generic mutate alias for full or props-only page writes |
 | `view_projection_rebuild` | — | `{ pagesScanned, taskRows, projectRows, noteRows, calendarRows }` | Manual recovery command for rebuilding hot-surface projection tables from canonical `pages` rows |
+
+Phase 6 generated transport types:
+
+- `SummaryViewRow` is the shared metadata row for tasks/projects/notes list/tree surfaces.
+- `CalendarOccurrenceRow` is the schedule-render DTO for calendar/task occurrences and intentionally omits markdown body transport.
+- `SearchHitRow` is the search-result DTO for Command Palette and Right Drawer search and intentionally omits markdown body transport.
 
 Current frontend migration note:
 
@@ -568,13 +580,19 @@ Embedding provider options:
 
 ## Event Streams
 
-Realtime frontend invalidation for Phase 3 uses Tauri event channels in addition to request/response commands.
+Realtime frontend invalidation for Phase 6 uses Tauri event channels in addition to request/response commands.
+
+Shared projection-impact payload shape:
+
+| Type | Fields | Notes |
+|---|---|---|
+| `PageEvent` | `pageId`, `kind`, `updatedAt?`, `changeType`, `effects[]` | `effects[]` entries are `{ projection, impact }`, where `projection ∈ { tasks, projects, notes, calendar, search }` and `impact ∈ { membership, order, summary, detail }`. `projectionKinds[]` may remain as compatibility metadata during migration, but `effects[]` is the Phase 6 source of truth. |
 
 | Event | Description | Payload fields | Frontend usage | Backend emitter |
 |-------|-------------|----------------|----------------|-----------------|
-| `page_created` | A page/entity was created | `pageId`, `kind`, `updatedAt?`, `changeType="create"`, `projectionKinds[]` | `stores/realtimeStore.ts` subscription; narrows invalidation to affected projections before view-level refresh logic runs | Page-creation handlers (`vault_create_page`, `capture_save`, etc.) |
-| `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?`, `changeType="update"`, `projectionKinds[]` | `stores/realtimeStore.ts` subscription; narrows invalidation to affected projections before view-level refresh logic runs | Page-update handlers (`page_update_props`, `page_update_body`, `vault_update_page`, `page_mutate`, `habits_toggle`) |
-| `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?`, `changeType="delete"`, `projectionKinds[]` | `stores/realtimeStore.ts` subscription; narrows invalidation to affected projections before view-level refresh logic runs | `vault_delete` |
+| `page_created` | A page/entity was created | `pageId`, `kind`, `updatedAt?`, `changeType="create"`, `effects[]` | `stores/realtimeStore.ts` subscription; `membership` / `order` effects invalidate only the affected visible page/range/query, while `summary` / `detail` effects drive targeted patching | Page-creation handlers (`vault_create_page`, `capture_save`, etc.) |
+| `page_updated` | A page/entity was updated | `pageId`, `kind`, `updatedAt?`, `changeType="update"`, `effects[]` | `stores/realtimeStore.ts` subscription; `summary` effects patch cached projection rows, `detail` effects refresh only open detail caches | Page-update handlers (`page_update_props`, `page_update_body`, `vault_update_page`, `page_mutate`, `habits_toggle`) |
+| `page_deleted` | A page/entity was deleted | `pageId`, `kind`, `updatedAt?`, `changeType="delete"`, `effects[]` | `stores/realtimeStore.ts` subscription; deletes in-range/in-page cached rows locally when possible, otherwise invalidates the affected projection cache | `vault_delete` |
 | `integrations_sync_progress` | Google Calendar sync lifecycle/progress updates | `phase`, `calendarId?`, `calendarName?`, `processed?`, `total?`, `message?` | Background sync status UX (WeekDashboard + Settings) | `integrations_trigger_sync` |
 | `obsidian_sync_progress` | Linked Obsidian vault sync lifecycle/progress updates | `phase`, `linkId`, `processed?`, `total?`, `message?`, `runId?`, `status?` | Settings linked-vault progress panel | linked-vault runtime + `obsidian_sync_now` |
 | `ai_stream_chunk` | Streamed AI text chunk | `requestId`, `text` | `services/aiService.ts` streaming updates in RightDrawer | `ai_chat` |

@@ -72,25 +72,39 @@ export interface PageRef {
 
 ### Output Location
 
-Current checked-in generation output for the performance refactor tranche is written to:
+Current checked-in generation output for the hot-surface transport slices is written to:
 
 ```
-frontend/services/generated/phase03-bindings.ts
+frontend/services/generated/phase06-bindings.ts
 ```
 
-Source contract spec:
+Source contract specs:
 
 ```
-contracts/specs/phase03-view-bindings.json
+contracts/specs/phase06-view-bindings.json
 ```
 
-Generator entrypoint:
+Generator entrypoints:
 
 ```
-node contracts/scripts/generate-phase03-bindings.mjs
+node contracts/scripts/generate-phase06-bindings.mjs
 ```
 
-The long-term target remains a full generated backend client surface, but the current phase-0/3 slice already uses a generated module for the hot-surface command set instead of hand-maintaining those bindings inside `frontend/services/backend.ts`.
+The long-term target remains a full generated backend client surface, but the current checked-in slices already cover the hot-surface command families instead of hand-maintaining those bindings inside `frontend/services/backend.ts`.
+
+Phase 6 adds the contract-reset transport family for:
+
+- `ViewPage<T>` paging
+- `SummaryViewRow`
+- `CalendarOccurrenceRow`
+- `SearchHitRow`
+- `page_detail` / `page_mutate` / `view_projection_rebuild`
+
+Phase 6 paging notes:
+
+- `nextCursor` is opaque backend-issued state, not a client-derived page id cursor.
+- `snapshotToken` changes when range/query membership or ordering changes.
+- Consumers must reset local append state on snapshot mismatch.
 
 ---
 
@@ -100,7 +114,7 @@ The long-term target remains a full generated backend client surface, but the cu
 |---------|------|
 | `cargo tauri dev` | On backend code changes during development |
 | `cargo tauri build` | Before production build |
-| Manual | `node contracts/scripts/generate-phase03-bindings.mjs` (current phase-0/3 binding slice) |
+| Manual | `node contracts/scripts/generate-phase06-bindings.mjs` (current checked-in hot-surface binding slice) |
 
 ---
 
@@ -120,11 +134,11 @@ Sometimes the generated types need augmentation:
 The CI pipeline verifies that generated types are up-to-date:
 
 ```bash
-# Generate fresh bindings for the current phase-0/3 command slice
-node contracts/scripts/generate-phase03-bindings.mjs
+# Generate fresh bindings for the checked-in hot-surface command slices
+node contracts/scripts/generate-phase06-bindings.mjs
 
 # Check for uncommitted changes
-git diff --exit-code frontend/services/generated/phase03-bindings.ts
+git diff --exit-code frontend/services/generated/phase06-bindings.ts
 ```
 
 If the generated file differs from what's committed, the CI check fails. This ensures that:
@@ -158,8 +172,8 @@ If the generated file differs from what's committed, the CI check fails. This en
 
 During the current performance refactor tranche:
 
-1. `phase03-bindings.ts` is generated from `contracts/specs/phase03-view-bindings.json`
-2. `frontend/services/backend.ts` consumes that generated module for the new hot-surface commands
+1. `phase06-bindings.ts` is generated from `contracts/specs/phase06-view-bindings.json`
+2. `frontend/services/backend.ts` and domain slices consume that generated module for hot-surface commands
 3. Existing hand-maintained wrappers remain only for legacy/non-migrated command surfaces
 4. Future phases can widen generation scope until the whole backend client is generated
 

@@ -27,6 +27,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `recipes.get`
   - `recipes.importPreview`
   - `recipes.importCommit`
+- Phase 6 checked-in binding source/generator for the hot-surface transport reset:
+  - `contracts/specs/phase06-view-bindings.json`
+  - `contracts/scripts/generate-phase06-bindings.mjs`
 
 ### Changed
 - `tasks.list` docs now point to summary-list reads plus `vault_read(page_id)` for full task detail hydration.
@@ -39,8 +42,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `vault.getFileContent` docs now point to `page_detail(page_id)` as the new canonical detail-open alias.
 - `tasks.update` and `projects.update` docs now point to the combined `vault_update_page` mutation path.
 - `page_created`, `page_updated`, and `page_deleted` payload docs now include additive `changeType` and `projectionKinds[]` metadata for narrower frontend invalidation.
+- Phase 6 transport reset keeps the hot-surface command names stable but changes the generated response contracts:
+  - `calendar_occurrences` now returns `ViewPage<CalendarOccurrenceRow>` instead of paginated `Page` rows
+  - `search_query` now returns `ViewPage<SearchHitRow>` instead of paginated `Page` rows
+  - `tasks_list_view`, `projects_list_view`, and `notes_tree_view` are documented against `ViewPage<SummaryViewRow>`
+- Hot-surface paging docs now standardize on `ViewPage<T> { items, nextCursor, totalApprox?, snapshotToken }`, where:
+  - `nextCursor` is opaque backend-issued paging state
+  - `snapshotToken` changes when query/range membership or ordering changes
+  - consumers must reset append state on snapshot mismatch instead of blindly appending
+- `page_created`, `page_updated`, and `page_deleted` payload docs now define `effects[]` projection-impact metadata as the Phase 6 source of truth:
+  - `effects[]` entries are `{ projection, impact }`
+  - `projection ∈ { tasks, projects, notes, calendar, search }`
+  - `impact ∈ { membership, order, summary, detail }`
 - Projection-backed view commands now document an explicit repair path via `view_projection_rebuild`, which rebuilds the Tasks/Projects/Notes/Calendar hot-surface read models from canonical `pages` rows.
-- Contracts now include a checked-in phase-0/3 binding spec plus local generator (`contracts/specs/phase03-view-bindings.json`, `contracts/scripts/generate-phase03-bindings.mjs`) and the frontend consumes the generated `phase03-bindings.ts` module for this command family.
+- Contracts/codegen docs now describe the checked-in Phase 6 generated binding surface (`phase06-bindings.ts`) used by the frontend for the hot-surface transport family, replacing the superseded Phase 3 slice.
 - `projects.milestones.list` docs now point to a backend-filtered summary query instead of collection-wide client filtering.
 - Meals/Recipes contract docs now reflect the Cookbook split:
   - `recipes.list` now accepts backend-side filter/sort request fields and returns `RecipeCardSummary[]`
