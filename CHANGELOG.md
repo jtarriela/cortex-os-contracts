@@ -32,6 +32,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `contracts/scripts/generate-phase06-bindings.mjs`
 
 ### Changed
+- Phase 7 contracts docs now freeze the ADR-0043 Phase 6 view transports as the canonical hot-surface path:
+  - `tasks.list` now documents `tasks_list_view` + `page_detail` for migrated hot-surface consumers
+  - `projects.list` now documents `projects_list_view` + `page_detail`
+  - `vault.getRoot` now documents `notes_tree_view`
+  - `collection_query_summary` and `vault_list_summary` remain documented only as retained generic metadata helpers outside the migrated hot path
 - `tasks.list` docs now point to summary-list reads plus `vault_read(page_id)` for full task detail hydration.
 - `tasks.list` docs now also define `tasks_list_view` as the paginated performance-first task list transport, with `TaskListRow[]` semantics instead of generic collection summaries.
 - `projects.list` docs now point to summary-list reads plus `vault_read(page_id)` for full project detail hydration.
