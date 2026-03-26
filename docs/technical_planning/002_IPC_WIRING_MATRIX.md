@@ -8,12 +8,12 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 
 > **Note (ADR-0006, ADR-0007):** The command names below use dot-notation with domain-specific namespaces (e.g., `tasks.create`, `journal.list`). Per ADR-0006, the production backend uses the EAV/Page model where all entities are pages. The target-state IPC surface uses **snake_case page-centric commands** as defined in `001_architecture.md` Section 6.2 (e.g., `vault_create_page`, `collection_query`, `page_update_props`).
 >
-> The domain-specific commands below are **Phase 0 bridge commands** — they document the frontend's `services/backend.ts` API surface mapped to EAV page-centric commands. **Phase 1 IPC wiring is complete** — all domain operations go through the generic EAV command surface:
+> The domain-specific commands below are **Phase 0 bridge commands** — they document the frontend's historical `services/backend.ts` API surface mapped to the production page-centric commands. After ADR-0043 Phase 6, **hot-surface reads no longer default to the generic EAV list commands**. Tasks, Projects, Notes, Calendar, Command Palette, and Right Drawer search now route through the generated view transports plus `page_detail` / `page_mutate`, while lower-traffic domains may still use the generic EAV command surface:
 >
 > | Bridge Command | Target Command | Notes |
 > |---|---|---|
 > | `tasks.create` | `vault_create_page(kind: "task", ...)` | Properties normalized to EAV |
-> | `tasks.list` | `collection_query(collectionId: "col_tasks")` | Filters via EAV properties |
+> | `tasks.list` | `tasks_list_view(cursor?, limit?)` | Hot-path task list transport; full task bodies load through `page_detail` |
 > | `tasks.update` | `vault_update_page(pageId, props, title?, body?)` | Combined hot-path page mutation |
 > | `tasks.delete` | `vault_delete(pageId)` | Removes .md file + index |
 > | ~~`schedule.getToday`~~ | `calendar.getToday` | **Removed** — ScheduleItem eliminated per ADR-0007; use `calendar.getToday` |
@@ -81,7 +81,7 @@ Current frontend migration note:
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `vault_create_page(kind:"task", props, body)` |
-| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `collection_query_summary("tasks")` for list metadata, `vault_read(page_id)` for full detail hydration |
+| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `tasks_list_view(cursor?, limit?)` for hot-path list metadata, `page_detail(page_id)` for full detail hydration |
 | `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:\"FS\", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `vault_update_page(page_id, props, title?, body?)` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `vault_delete(page_id)` |
 
@@ -90,7 +90,7 @@ Current frontend migration note:
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `projects.create` | Create a project | `template_id?`, `title`, `description?`, `priority?` | `Project` | ProjectsIndex (new project) | `vault_create_page(kind:"project", props)` |
-| `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `collection_query_summary("projects")` for card metadata; `vault_read(page_id)` for detail open |
+| `projects.list` | List projects | `status?`, `search?` | `Project[]` | ProjectsIndex | `projects_list_view(cursor?, limit?)` for hot-path card metadata; `page_detail(page_id)` for detail open |
 | `projects.get` | Get project details | `id` | `ProjectDetail` | ProjectDetail view | `vault_read(page_id)` |
 | `projects.update` | Update project | `id`, updatable fields incl. status/priority/date-range, `artifacts`, `columns` (milestones are dual-write body + milestone pages) | `Project` | ProjectDetail (overview + timeline), ProjectsIndex cards | `vault_update_page(page_id, props, title?, body?)` |
 
@@ -114,8 +114,8 @@ Current frontend migration note:
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `vault.getRoot` | Get vault file tree | — | `FileNode[]` | NotesLibrary file tree | `vault_list_summary(kind?)` for metadata-only tree rows |
-| `vault.getFileContent` | Get note content | `id` | `Note` | NotesLibrary note viewer, RightDrawer | `vault_read(page_id)` |
+| `vault.getRoot` | Get vault file tree | — | `FileNode[]` | NotesLibrary file tree | `notes_tree_view(kind?, cursor?, limit?)` for hot-path metadata rows |
+| `vault.getFileContent` | Get note content | `id` | `Note` | NotesLibrary note viewer, RightDrawer | `page_detail(page_id)` |
 | `notes.create` | Create a note | `title`, `content`, `path`, `tags?` | `Note` | NotesLibrary | `NoteService::create` |
 | `notes.update` | Update a note | `id`, `title?`, `content?`, `tags?` | `Note` | NotesLibrary | `NoteService::update` |
 | `vault_get_profile` | Read active vault onboarding profile | — | `VaultProfile \| null` | App bootstrap gate | `vault_get_profile` |
@@ -127,9 +127,9 @@ Current frontend migration note:
 | `vault_markdown_metadata_audit` | Audit Cortex-managed markdown files for canonical frontmatter parity | `request?: { kinds?, include_external_mirrors?, limit? }` | `VaultMarkdownMetadataAuditResult` | Vault maintenance / diagnostics (Settings → Integrations) | `vault_markdown_metadata_audit` |
 | `vault_markdown_metadata_repair` | Rewrite Cortex-managed markdown files to canonical frontmatter + body (skip linked Obsidian) | `request?: { page_ids?, kinds?, include_external_mirrors?, force_conflicts?, limit? }` | `VaultMarkdownMetadataRepairResult` | Vault maintenance / explicit repair action (Settings → Integrations) | `vault_markdown_metadata_repair` |
 | `view_projection_rebuild` | Rebuild Tasks/Projects/Notes/Calendar projection tables from canonical page state | — | `ViewProjectionRebuildResult { pagesScanned, taskRows, projectRows, noteRows, calendarRows }` | Explicit maintenance / recovery action for performance read models | `view_projection_rebuild` |
-| `collection_query_summary` | Metadata-first collection list query | `collection_id` | `PageSummary[]` | Task list / other projection-first list surfaces | `collection_query_summary` |
+| `collection_query_summary` | Metadata-first generic collection list query | `collection_id` | `PageSummary[]` | Retained non-hot-surface / legacy collection metadata reads | `collection_query_summary` |
 | `project_milestones_list` | Metadata-first project milestone list query | `project_id` | `PageSummary[]` | ProjectDetail milestone sync + timeline hydration | `project_milestones_list` |
-| `vault_list_summary` | Metadata-first vault list query | `kind?` | `PageSummary[]` | NotesLibrary explorer tree | `vault_list_summary` |
+| `vault_list_summary` | Metadata-first generic vault list query | `kind?` | `PageSummary[]` | Retained non-hot-surface vault metadata reads | `vault_list_summary` |
 | `dev_capture_write_consumer_trace_artifact` | Debug-only ADR-0042 trace persistence to the fixed integration evidence folder | `fileStem`, `vaultRoot`, `entries[]` | `string` absolute artifact path | Phase 7 validation harness / local evidence capture only | `dev_capture_write_consumer_trace_artifact` |
 
 ### Canonical Page Mutations (Phase 5 alignment)

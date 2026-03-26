@@ -62,6 +62,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `search_query` docs now state that pagination traverses the full ranked result set for the current snapshot instead of stopping at a fixed candidate window.
 - Projection-backed view commands now document an explicit repair path via `view_projection_rebuild`, which rebuilds the Tasks/Projects/Notes/Calendar hot-surface read models from canonical `pages` rows.
 - Contracts/codegen docs now describe the checked-in Phase 6 generated binding surface (`phase06-bindings.ts`) used by the frontend for the hot-surface transport family, replacing the superseded Phase 3 slice.
+- Phase 7 cleanup docs now treat `tasks_list_view`, `projects_list_view`, and `notes_tree_view` as the canonical hot-surface list/tree transport, while `collection_query_summary` and `vault_list_summary` are retained only as generic metadata helpers outside the migrated hot path.
 - `projects.milestones.list` docs now point to a backend-filtered summary query instead of collection-wide client filtering.
 - Meals/Recipes contract docs now reflect the Cookbook split:
   - `recipes.list` now accepts backend-side filter/sort request fields and returns `RecipeCardSummary[]`
