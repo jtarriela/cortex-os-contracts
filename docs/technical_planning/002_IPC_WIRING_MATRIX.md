@@ -13,7 +13,7 @@ This matrix documents the public **IPC contract** for Cortex OS. Each command li
 > | Bridge Command | Target Command | Notes |
 > |---|---|---|
 > | `tasks.create` | `vault_create_page(kind: "task", ...)` | Properties normalized to EAV |
-> | `tasks.list` | `tasks_list_view(cursor?, limit?)` | Hot-path task list transport; full task bodies load through `page_detail` |
+> | `tasks.list` | `tasks_list_view(cursor?, limit?, scope?, order?)` | Hot-path task list transport; full task bodies load through `page_detail` |
 > | `tasks.update` | `vault_update_page(pageId, props, title?, body?)` | Combined hot-path page mutation |
 > | `tasks.delete` | `vault_delete(pageId)` | Removes .md file + index |
 > | ~~`schedule.getToday`~~ | `calendar.getToday` | **Removed** — ScheduleItem eliminated per ADR-0007; use `calendar.getToday` |
@@ -47,7 +47,7 @@ Shared paging contract:
 
 | Command | Request fields | Response | Purpose |
 |---|---|---|---|
-| `tasks_list_view` | `cursor?`, `limit?` | `ViewPage<SummaryViewRow>` | Performance-first task list transport for Tasks, Today, and other task-list consumers |
+| `tasks_list_view` | `cursor?`, `limit?`, `scope?`, `order?` | `ViewPage<SummaryViewRow>` | Performance-first task list transport for Tasks, Today, and other task-list consumers; `scope="overdue"` pages only incomplete overdue tasks and honors `order="newest"|"oldest"` by overdue anchor date |
 | `projects_list_view` | `cursor?`, `limit?` | `ViewPage<SummaryViewRow>` | Performance-first project-card/index transport |
 | `notes_tree_view` | `kind?`, `cursor?`, `limit?` | `ViewPage<SummaryViewRow>` | Performance-first metadata tree transport for Notes explorer |
 | `calendar_occurrences` | `start_date`, `end_date`, `cursor?`, `limit?` | `ViewPage<CalendarOccurrenceRow>` | Range-bounded schedule/calendar occurrence transport without full `Page.body` hydration. Phase 6 invalidation metadata for `projection="calendar"` is intentionally narrowed to rows actually served by `calendar_occurrence_projection` today; callers must not treat it as a generic fanout for every schedule-adjacent page kind. |
@@ -81,7 +81,7 @@ Current frontend migration note:
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `vault_create_page(kind:"task", props, body)` |
-| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `tasks_list_view(cursor?, limit?)` for hot-path list metadata, `page_detail(page_id)` for full detail hydration |
+| `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `tasks_list_view(cursor?, limit?, scope?, order?)` for hot-path list metadata, `page_detail(page_id)` for full detail hydration |
 | `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:\"FS\", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `vault_update_page(page_id, props, title?, body?)` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `vault_delete(page_id)` |
 

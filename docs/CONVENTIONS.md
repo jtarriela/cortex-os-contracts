@@ -29,7 +29,7 @@ Commands follow Tauri's convention of Rust function names exposed via `#[tauri::
 The frontend's `dataService.ts` currently uses domain-specific function names (e.g., `addTask`, `getCalendarEvents`). The contracts wiring matrix (`002_IPC_WIRING_MATRIX.md`) documents these as bridge commands with dot-notation (e.g., `tasks.create`). During Phase 1 IPC wiring, these map to the page-centric commands above:
 
 - `tasks.create` → `vault_create_page(kind: "task", ...)`
-- `tasks.list` → `tasks_list_view(cursor?, limit?)` for migrated hot surfaces; generic `collection_query(collection_id: "col_tasks", ...)` remains available for non-hot-surface / legacy consumers
+- `tasks.list` → `tasks_list_view(cursor?, limit?, scope?, order?)` for migrated hot surfaces; generic `collection_query(collection_id: "col_tasks", ...)` remains available for non-hot-surface / legacy consumers
 
 See `001_architecture.md` Section 6.2 for the full target-state command surface.
 
