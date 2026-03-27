@@ -110,9 +110,9 @@
   "commands": [
     {
       "name": "tasks_list_view",
-      "signature": "(cursor?: string, limit = 500): Promise<ViewPage<SummaryViewRow>>",
+      "signature": "(cursor?: string, limit = 500, scope?: string, order?: string): Promise<ViewPage<SummaryViewRow>>",
       "retry": true,
-      "requestExpression": "{ ...(cursor ? { cursor } : {}), limit }"
+      "requestExpression": "{ ...(cursor ? { cursor } : {}), ...(scope ? { scope } : {}), ...(order ? { order } : {}), limit }"
     },
     {
       "name": "projects_list_view",
