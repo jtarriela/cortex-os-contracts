@@ -30,6 +30,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Phase 6 checked-in binding source/generator for the hot-surface transport reset:
   - `contracts/specs/phase06-view-bindings.json`
   - `contracts/scripts/generate-phase06-bindings.mjs`
+- Google explicit-convert contract surface:
+  - `integrations.convertGoogleEventToTask` (`{ pageId } -> { taskId, calendarEventId, linkedNoteId?, alreadyConverted }`)
+- Integration settings additive field:
+  - `mirrorMigrationV2Done`
 
 ### Changed
 - Phase 7 contracts docs now freeze the ADR-0043 Phase 6 view transports as the canonical hot-surface path:
@@ -74,6 +78,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `recipes.create` / `recipes.update` now persist structured recipe sections and metadata instead of flat `ingredients[]` + `instructions`
   - `recipes.delete` now documents cookbook ownership instead of the legacy Meals recipe card flow
   - recipe import preview/commit semantics, deterministic markdown bodies, lazy legacy normalization, dedupe rules, and multimodal fallback are now documented
+- Google editable-calendar policy now uses explicit conversion (no automatic inbound task mirroring):
+  - `editableCalendars` now marks conversion/writeback eligibility only
+  - `integrations.deleteMirroredEvent` now handles unconverted Google event pages and converted task bundles
 
 ## [0.10.13] — 2026-03-06
 

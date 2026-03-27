@@ -148,3 +148,17 @@ The following contract additions are classified as **MINOR** changes (additive f
 - new event stream payload: `integrations_sync_progress`
 
 Frontend and backend must treat unknown response/event fields as forward-compatible.
+
+### Google Explicit-Convert Compatibility Notes (2026-03-27)
+
+The following contract updates are classified as **MINOR** changes (additive fields/commands):
+
+- new command: `integrations.convertGoogleEventToTask` (`{ pageId } -> { taskId, calendarEventId, linkedNoteId?, alreadyConverted }`)
+- `IntegrationSettings` additive field: `mirrorMigrationV2Done`
+
+The following are **semantic behavior changes** and must be called out in docs/changelog even pre-1.0:
+
+- `editableCalendars` now marks calendars eligible for explicit conversion/writeback; it no longer implies automatic task-mirror creation for every inbound event.
+- `integrations.deleteMirroredEvent` now accepts both unconverted Google-event pages and converted bundle members, resolving/deleting the full local bundle plus source Google event when present.
+
+Semantic behavior changes must include paired FE/BE PR links and explicit migration notes in `002_IPC_WIRING_MATRIX.md` and `CHANGELOG.md`.

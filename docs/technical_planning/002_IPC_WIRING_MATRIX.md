@@ -433,7 +433,8 @@ Current frontend migration note:
 | `integrations.googleAuth` | Authenticate with Google (calendar-only by default; optional Gmail scope upgrade for Travel) | `scopeProfile?` (`"calendar"` \| `"calendar_gmail"`, default `"calendar"`) | `string` (authorized account email) | Settings Integrations, Travel Gmail scope enable flow | `integrations_google_auth` (requires `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`) |
 | `integrations.googleCalendars` | List available calendars with metadata | — | `GoogleCalendarMetadata[]` (`id`, `summary`, `backgroundColor?`, `primary`) | Settings Integrations, Week planner filtering | `integrations_google_calendars` |
 | `integrations.triggerSync` | Trigger two-way sync manually and emit progress telemetry | — | `boolean` | Settings Integrations, background sync queue | `integrations_trigger_sync` |
-| `integrations.deleteMirroredEvent` | Delete mirrored Google source event and linked local mirror entities | `pageId` | `boolean` | Week planner mirrored-delete flow | `integrations_delete_mirrored_event` |
+| `integrations.convertGoogleEventToTask` | Explicitly convert a Google event into a writable Cortex task bundle | `{ pageId }` | `{ taskId, calendarEventId, linkedNoteId?, alreadyConverted }` | Week planner explicit-convert action | `integrations_convert_google_event_to_task` |
+| `integrations.deleteMirroredEvent` | Delete a Google source event plus local entities for either an unconverted event or a converted task bundle | `pageId` | `boolean` | Week planner Google delete flow (unconverted + converted) | `integrations_delete_mirrored_event` |
 | `obsidian.linkAdd` | Register an external Obsidian vault link | `request: { root_path, mode: "read_only"\|"read_write", include_paths?, exclude_paths? }` | `VaultLink` | Settings Integrations (Linked Obsidian Vault panel) | `obsidian_link_add` |
 | `obsidian.linkList` | List linked Obsidian vaults | — | `VaultLink[]` | Settings Integrations | `obsidian_link_list` |
 | `obsidian.linkRemove` | Remove a linked Obsidian vault | `request: { link_id }` | `void` | Settings Integrations | `obsidian_link_remove` |
@@ -447,8 +448,9 @@ Current frontend migration note:
 >
 > `IntegrationSettings` now includes:
 > - `syncedCalendars: string[]` (calendar IDs/names selected for sync)
-> - `editableCalendars: string[]` (subset selected for writable task-mirror workflow)
-> - `mirrorMigrationV1Done: boolean` (one-time migration marker)
+> - `editableCalendars: string[]` (subset eligible for explicit conversion/writeback; events remain read-only until converted)
+> - `mirrorMigrationV1Done: boolean` (legacy auto-mirror migration marker)
+> - `mirrorMigrationV2Done: boolean` (explicit-convert migration marker)
 > - `googleGmailConnected: boolean` (shared Google auth includes Gmail scope for Travel Stage 4B)
 > - `financeMode?: "MANUAL" | "YNAB"` (persists Finance module mode selection across restarts)
 >
