@@ -34,6 +34,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `integrations.convertGoogleEventToTask` (`{ pageId } -> { taskId, calendarEventId, linkedNoteId?, alreadyConverted }`)
 - Integration settings additive field:
   - `mirrorMigrationV2Done`
+- Restored Journal analytics contract surface:
+  - `journal.analytics`
 
 ### Changed
 - Phase 7 contracts docs now freeze the ADR-0043 Phase 6 view transports as the canonical hot-surface path:
@@ -81,6 +83,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Google editable-calendar policy now uses explicit conversion (no automatic inbound task mirroring):
   - `editableCalendars` now marks conversion/writeback eligibility only
   - `integrations.deleteMirroredEvent` now handles unconverted Google event pages and converted task bundles
+- Journal docs now record the restored regression path:
+  - `journal.create` auto-fills `date` and writes new managed entries to `Journal/<date>-<id>.md`
+  - `journal.query` dual-reads managed `journal_entry` pages plus unmanaged top-level `Journal/*.md` files without duplicates
+  - `journal.analytics` is the canonical analytics transport for the Journal view
 
 ## [0.10.13] — 2026-03-06
 
