@@ -248,10 +248,11 @@ Current frontend migration note:
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `journal.create` | Add journal entry | `date?`, `content`, `mood?`, `tags?` | `JournalEntry` | Journal view | `JournalService::create` |
-| `journal.list` | List entries | `date_range?`, `mood?`, `tag?` | `JournalEntry[]` | Journal view | `JournalService::list` |
-| `journal.query` | Filter entries by date/mood | `startDate?`, `endDate?`, `mood?` | `JournalEntry[]` | Journal timeline filtering | `journal_query` |
+| `journal.create` | Add journal entry | `date?`, `content`, `mood?`, `tags?` | `JournalEntry` | Journal composer | `vault_create_page(kind:"journal_entry", props, body)` (auto-fills `date` when omitted and writes `Journal/<date>-<id>.md`) |
+| `journal.list` | List entries | `date_range?`, `mood?`, `tag?` | `JournalEntry[]` | Journal view | `journal_query(startDate?, endDate?, mood?)` + frontend tag filtering for historical compatibility |
+| `journal.query` | Filter entries by date/mood across managed journal pages and unmanaged top-level `Journal/*.md` files | `startDate?`, `endDate?`, `mood?` | `JournalEntry[]` | Journal timeline filtering | `journal_query` |
 | `journal.moodTrends` | Aggregate mood counts | `startDate?`, `endDate?` | `{ mood, count }[]` | Journal mood chart | `journal_mood_trends` |
+| `journal.analytics` | Aggregate journal KPIs, mood buckets, feeling buckets, and timeline term counts | `startDate?`, `endDate?`, `bucketDays?`, `maxTerms?` | `JournalAnalyticsResponse` | Journal analytics module | `journal_analytics` |
 
 ### Habits
 
