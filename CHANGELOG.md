@@ -50,6 +50,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `mirrorMigrationV2Done`
 - Restored Journal analytics contract surface:
   - `journal.analytics`
+- Travel provider contract surface for ADR-0048:
+  - `travel.providerStatus`
+  - `travel.providerListCards`
+  - `travel.providerLaunch`
+  - `travel.providerSync`
+  - `travel.providerCheckUpdates`
+  - `travel.providerApplyUpdate`
 
 ### Changed
 - Dependency enum docs now standardize on full PM dependency kinds (`FS|SS|FF|SF`) where task/planner dependency contracts are documented.

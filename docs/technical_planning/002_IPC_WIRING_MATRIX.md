@@ -199,6 +199,12 @@ Batch mutate request shape:
 | `travel.exportGoogleMaps` | Export an ordered route/waypoint sequence to Google Maps targets with explicit graceful fallback | `tripId`, `target`, `waypointItemIds[]`, `dayDate?`, `mode?`, `exportName?` | `TravelGoogleExportResult` (union) | Travel v2 Map tab export panel | `travel_export_google_maps` |
 | `travel.getMapsProviderStatus` | Read Travel maps/routing provider configuration status (key presence only; no plaintext secrets) | — | `TravelMapsProviderStatus` | Settings → Integrations (Travel Google keys), Travel Map tab gating | `travel_get_maps_provider_status` |
 | `travel.getMapsJsConfig` | Read frontend-safe Google Maps JS loader config (Maps JS key + libraries) | — | `TravelMapsJsConfig` | Travel v2 embedded map loader | `travel_get_maps_js_config` |
+| `travel.providerStatus` | Read TREK provider runtime/auth/mirror/update readiness for the active vault | — | `TravelProviderStatus` | Travel provider gate/status card (Settings + Travel route shell) | `travel_provider_status` |
+| `travel.providerListCards` | List read-only TREK mirror trip cards available in the active vault | — | `TravelProviderMirrorCard[]` | Travel provider gallery/card index | `travel_provider_list_cards` |
+| `travel.providerLaunch` | Launch TREK provider for a selected trip card (embedded default, optional pop-out) | `tripId`, `mode?` (`embedded\|popout`) | `TravelProviderLaunchResult` | Travel provider card open action | `travel_provider_launch` |
+| `travel.providerSync` | Run TREK -> Cortex mirror sync for trip cards/notes and refresh index visibility | `tripId?`, `force?` | `TravelProviderSyncResult` | Travel provider manual sync/reconcile action | `travel_provider_sync` |
+| `travel.providerCheckUpdates` | Check upstream TREK runtime update candidates without switching active runtime | — | `TravelProviderUpdateCheckResult` | Travel provider update panel (preflight check) | `travel_provider_check_updates` |
+| `travel.providerApplyUpdate` | Apply a user-approved TREK runtime candidate with compatibility gating | `targetVersion` | `TravelProviderApplyUpdateResult` | Travel provider update panel (activate candidate) | `travel_provider_apply_update` |
 | `travel.importPreview` | Preview AI-assisted Travel import candidates from URL/text/screenshot sources (no writes) | `tripId`, `sources[]` (`kind = url \| text \| image_base64` + source payload fields), `options?` | `TravelImportPreviewResult` (`candidates[]`, `warnings[]`, `stats`, `provider`, `previewGeneratedAt`) | Travel v2 Import tab (manual source preview) | `travel_import_preview` |
 | `travel.importCommit` | Persist selected/edited Travel import candidates from preview and index created pages | `tripId`, `approvedCandidates[]`, `commitMode?` | `TravelImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Travel v2 Import tab (manual source commit) | `travel_import_commit` |
 | `travel.gmailScanPreview` | User-triggered Gmail reservation scan for a trip/date range (preview only; no writes) | `tripId`, `startDate`, `endDate`, `maxMessages?`, `queryOverride?`, `includeAlreadyImported?` | `TravelGmailScanPreviewResult` (`candidates[]`, `warnings[]`, `scanStats`, `messages[]`, `previewGeneratedAt`) | Travel v2 Import tab (Gmail scan preview) | `travel_gmail_scan_preview` |
@@ -254,6 +260,11 @@ Batch mutate request shape:
 >   - day push: `{ tripId, dayDate }`
 >   - selected push: `{ tripId, itemIds: ["item-1","item-2"] }`
 >   - re-push overwrite: `{ tripId, dayDate, overwriteExisting: true }`
+>
+> Provider runtime notes (ADR-0048):
+> - Sidecar runtime assumes bundled Node + bundled TREK runtime in the desktop package (no host Docker/Node prerequisite).
+> - `travel.providerListCards` exposes read-only mirror cards from `Travel/.trek/mirror/...`; mirror markdown/pages remain the Cortex retrieval/RAG surface.
+> - Safe update flow is explicit: `travel.providerCheckUpdates` discovers candidates and `travel.providerApplyUpdate` switches only after integrity/health/schema/auth/sync checks pass; failed activation rolls back to last-known-good runtime.
 
 ### Finance
 
