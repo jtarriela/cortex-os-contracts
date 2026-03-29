@@ -28,6 +28,8 @@ Top-level command arguments passed from frontend `invoke()` use **camelCase** ke
 - `collection_query(collection_id: String)` → `invoke('collection_query', { collectionId })`
 - `collection_query_summary(collection_id: String)` → `invoke('collection_query_summary', { collectionId })`
 - `project_milestones_list(project_id: String)` → `invoke('project_milestones_list', { projectId })`
+- `project_plan_items_list(project_id: String)` → `invoke('project_plan_items_list', { projectId })`
+- `project_plan_item_delete(plan_item_id: String)` → `invoke('project_plan_item_delete', { planItemId })`
 - `calendar_get_week(start_date: Option<String>)` → `invoke('calendar_get_week', { startDate })`
 - `calendar_get_range(start_date: String, end_date: String)` → `invoke('calendar_get_range', { startDate, endDate })`
 - `travel_create_trip(start_date, end_date, budget?)` → `invoke('travel_create_trip', { startDate, endDate, budget })`
@@ -82,7 +84,7 @@ Current frontend migration note:
 |---------|-------------|----------------|----------------|----------------|----------------|
 | `tasks.create` | Create a new task | `title` (string), `description?`, `due_date?`, `project_id?`, `priority?` (enum: `HIGH\|MEDIUM\|LOW\|NONE`), `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `type?`, `tags?` (string[]) | `Task` | CreateTaskModal, CommandPalette, AI agent `addTask` | `vault_create_page(kind:"task", props, body)` |
 | `tasks.list` | List tasks with filters | `status?` (enum: `TODO\|DOING\|BLOCKED\|DONE\|ARCHIVED`), `project_id?`, `search?` | `Task[]` | TasksIndex, TodayDashboard, ProjectDetail | `tasks_list_view(cursor?, limit?, scope?, order?)` for hot-path list metadata, `page_detail(page_id)` for full detail hydration |
-| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:\"FS\", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `vault_update_page(page_id, props, title?, body?)` |
+| `tasks.update` | Update a task | `id`, any updatable Task fields incl. `status` (accepts `BLOCKED`), `sync_external?` (boolean), planning fields (`planned_start_date`, `planned_end_date`, `baseline_start_date`, `baseline_end_date`, `actual_start_date`, `actual_end_date`), dependencies (`dependencies[]`: `{ predecessor_id, type:\"FS\\|SS\\|FF\\|SF\", lag_days? }`) | `Task` | TaskDetailModal, TasksIndex (drag), TodayDashboard, Project Timeline | `vault_update_page(page_id, props, title?, body?)` |
 | `tasks.delete` | Delete a task | `id` | `void` | TaskDetailModal | `vault_delete(page_id)` |
 
 ### Projects
@@ -110,6 +112,28 @@ Current frontend migration note:
 > - Removing a markerized checklist line deletes the linked milestone page.
 > - Checkbox mapping: checked => `COMPLETED`, unchecked => `NOT_STARTED`.
 
+### Project Planner (Native Gantt)
+
+Canonical planner entities:
+
+- `ProjectPlanItem`: `id`, `project_ref`, `row_type` (`phase` | `plan_task`), `title`, `parent_id?`, `order`, `start_date`, `end_date`, `status`, `progress`, `baseline_start_date?`, `baseline_end_date?`, `actual_start_date?`, `actual_end_date?`, `linked_task_id?`, `color?`, `description?`
+- `ProjectPlanDependency`: `predecessor_id`, `successor_id`, `type` (`FS|SS|FF|SF`), `lag_days?`
+
+Batch mutate request shape:
+
+- `row_updates[]` (parent/order/range/status/progress/metadata)
+- `dependency_upserts[]`
+- `dependency_deletes[]`
+- `expected_revision?` (optimistic concurrency token)
+
+| Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
+|---------|-------------|----------------|----------------|----------------|----------------|
+| `projects.plan.list` | List planner rows + dependency graph for one project | `project_id` | `ProjectPlanListResponse { items[], dependencies[], revision }` | ProjectDetail timeline workspace boot load/reload | `project_plan_items_list(project_id)` |
+| `projects.plan.create` | Create planner row | `request: ProjectPlanItemCreateRequest` | `ProjectPlanItem` | Planner create phase/task | `project_plan_item_create(request)` |
+| `projects.plan.update` | Update planner row | `request: ProjectPlanItemUpdateRequest` | `ProjectPlanItem` | Planner inspector edits / drag-resize persist | `project_plan_item_update(request)` |
+| `projects.plan.delete` | Delete planner row | `plan_item_id` | `void` | Planner row context delete | `project_plan_item_delete(plan_item_id)` |
+| `projects.plan.batchMutate` | Atomically apply planner row/dependency edits | `request: ProjectPlanBatchMutateRequest` | `ProjectPlanListResponse { items[], dependencies[], revision }` | Reorder/reparent/dependency graph edits | `project_plan_batch_mutate(request)` |
+
 ### Notes / Vault
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
@@ -129,6 +153,11 @@ Current frontend migration note:
 | `view_projection_rebuild` | Rebuild Tasks/Projects/Notes/Calendar projection tables from canonical page state | — | `ViewProjectionRebuildResult { pagesScanned, taskRows, projectRows, noteRows, calendarRows }` | Explicit maintenance / recovery action for performance read models | `view_projection_rebuild` |
 | `collection_query_summary` | Metadata-first generic collection list query | `collection_id` | `PageSummary[]` | Retained non-hot-surface / legacy collection metadata reads | `collection_query_summary` |
 | `project_milestones_list` | Metadata-first project milestone list query | `project_id` | `PageSummary[]` | ProjectDetail milestone sync + timeline hydration | `project_milestones_list` |
+| `project_plan_items_list` | Planner-native list query (project-scoped) | `project_id` | `ProjectPlanListResponse { items[], dependencies[], revision }` | ProjectDetail planner workspace | `project_plan_items_list` |
+| `project_plan_item_create` | Planner-native row create | `request` (`ProjectPlanItemCreateRequest`) | `ProjectPlanItem` | Planner workspace create row | `project_plan_item_create` |
+| `project_plan_item_update` | Planner-native row update | `request` (`ProjectPlanItemUpdateRequest`) | `ProjectPlanItem` | Planner workspace inspector edits | `project_plan_item_update` |
+| `project_plan_item_delete` | Planner-native row delete | `plan_item_id` | `void` | Planner workspace row delete | `project_plan_item_delete` |
+| `project_plan_batch_mutate` | Planner-native atomic row/dependency mutate | `request` (`ProjectPlanBatchMutateRequest`) | `ProjectPlanListResponse { items[], dependencies[], revision }` | Planner reorder/reparent/dependency editing | `project_plan_batch_mutate` |
 | `vault_list_summary` | Metadata-first generic vault list query | `kind?` | `PageSummary[]` | Retained non-hot-surface vault metadata reads | `vault_list_summary` |
 | `dev_capture_write_consumer_trace_artifact` | Debug-only ADR-0042 trace persistence to the fixed integration evidence folder | `fileStem`, `vaultRoot`, `entries[]` | `string` absolute artifact path | Phase 7 validation harness / local evidence capture only | `dev_capture_write_consumer_trace_artifact` |
 

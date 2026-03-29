@@ -8,6 +8,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Native project planner contract surface:
+  - `project_plan_items_list`
+  - `project_plan_item_create`
+  - `project_plan_item_update`
+  - `project_plan_item_delete`
+  - `project_plan_batch_mutate`
+- Canonical planner contract shapes documented:
+  - `ProjectPlanItem` (`row_type: phase|plan_task`, hierarchy/order/range/progress/link fields)
+  - `ProjectPlanDependency` (`predecessor_id`, `successor_id`, `type: FS|SS|FF|SF`, `lag_days?`)
+- Planner batch-mutate contract shape documented:
+  - `row_updates[]`
+  - `dependency_upserts[]`
+  - `dependency_deletes[]`
+  - `expected_revision?` optimistic concurrency token
 - Metadata-first list query contract surface:
   - `collection_query_summary`
   - `project_milestones_list`
@@ -38,6 +52,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `journal.analytics`
 
 ### Changed
+- Dependency enum docs now standardize on full PM dependency kinds (`FS|SS|FF|SF`) where task/planner dependency contracts are documented.
+- Planner docs now define a migration boundary: planner reads/writes are project-scoped commands (`project_plan_*`) rather than frontend filtering of `vault_list_summary`.
 - Phase 7 contracts docs now freeze the ADR-0043 Phase 6 view transports as the canonical hot-surface path:
   - `tasks.list` now documents `tasks_list_view` + `page_detail` for migrated hot-surface consumers
   - `projects.list` now documents `projects_list_view` + `page_detail`
