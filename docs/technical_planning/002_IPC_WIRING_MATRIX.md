@@ -178,93 +178,13 @@ Batch mutate request shape:
 
 | Command | Description | Request fields | Response fields | Frontend usage | Backend handler |
 |---------|-------------|----------------|----------------|----------------|----------------|
-| `travel.listTrips` | List all trips | — | `Trip[]` | Travel gallery | `TravelService::list` |
-| `travel.createTrip` | Create a trip folder and overview note | `title`, `destination`, `startDate`, `endDate`, `budget?` | `Trip` | Travel "New Trip" splash modal (destination + dates + duration + optional budget) | `travel_create_trip` (`Travel/Trips/<slug>/Overview.md`, status normalized to `Planning`) |
-| `travel.getWorkspace` | Travel v2 workspace projection (trip + locations/items/expenses + legacy cards) | `tripId` | `{ trip, locations[], items[], expenses[], legacyCards[] }` | Travel v2 workspace hydration | `travel_get_workspace` |
-| `travel.createLocation` | Create a structured location card under a trip | `tripId`, `title`, `props?`, `body?` | `Page` (`kind="trip_location"`) | Travel v2 Locations panel | `travel_create_location` |
-| `travel.updateLocation` | Update a structured location card | `locationId`, `title?`, `props?`, `body?` | `Page` (`kind="trip_location"`) | Travel v2 location editor | `travel_update_location` |
-| `travel.reorderLocations` | Persist ordered location indexes | `tripId`, `orderedLocationIds[]` | `Page[]` (`trip_location`) | Travel v2 location ordering | `travel_reorder_locations` |
-| `travel.createItem` | Create a structured trip item (place/activity/flight/lodging/etc.) | `tripId`, `locationId?`, `itemType`, `title`, `props?`, `body?` | `Page` (`kind="trip_item"`) | Travel v2 itinerary/logistics create flows | `travel_create_item` |
-| `travel.updateItem` | Update a structured trip item | `itemId`, `title?`, `props?`, `body?` | `Page` (`kind="trip_item"`) | Travel v2 item editor | `travel_update_item` |
-| `travel.moveItem` | Move a trip item across location/day/order (metadata move only; validates target location kind + trip ownership) | `itemId`, `targetLocationId?`, `clearLocation?`, `targetDayDate?`, `targetOrderIndex?` | `Page` (`kind="trip_item"`) | Travel v2 itinerary adjustments | `travel_move_item` |
-| `travel.reorderItems` | Persist ordered item indexes | `tripId`, `orderedItemIds[]` | `Page[]` (`trip_item`) | Travel v2 itinerary ordering | `travel_reorder_items` |
-| `travel.createExpense` | Create a trip expense entry | `tripId`, `title`, `props?`, `body?` | `Page` (`kind="trip_expense"`) | Travel v2 Budget tab | `travel_create_expense` |
-| `travel.updateExpense` | Update a trip expense entry | `expenseId`, `title?`, `props?`, `body?` | `Page` (`kind="trip_expense"`) | Travel v2 Budget tab | `travel_update_expense` |
-| `travel.deleteExpense` | Delete a trip expense entry | `expenseId` | `void` | Travel v2 Budget tab | `travel_delete_expense` |
-| `travel.getBudgetSummary` | Aggregate trip expenses into budget rollups | `tripId` | `TravelBudgetSummary` | Travel v2 Budget tab summary cards + breakdowns | `travel_get_budget_summary` |
-| `travel.legacyMigrateCards` | Convert legacy `travel_card` pages into `trip_item` pages (non-destructive, duplicate-safe by `legacy_card_id`) | `tripId`, `cardIds?` | `Page[]` (`trip_item`) | Travel v2 legacy migration actions | `travel_legacy_migrate_cards` |
-| `travel.resolveMapWaypoints` | Resolve and persist coordinates/address metadata for routeable travel locations/items (backend geocoding; explicit user action) | `tripId`, `entityRefs[]`, `overwriteExisting?` | `TravelWaypointResolveResult[]` | Travel v2 Map tab waypoint resolve flow | `travel_resolve_map_waypoints` |
-| `travel.routeComputeLeg` | Compute a single route leg between two coordinates using the active backend routing provider | `tripId`, `mode`, `from`, `to`, `departAt?`, `useCache?` | `TravelRouteLegResult` | Travel v2 route preview / diagnostics | `travel_route_compute_leg` |
-| `travel.routeComputeDay` | Compute an ordered day route across itinerary items (transit computed per-leg and stitched) | `tripId`, `dayDate`, `mode`, `waypointItemIds[]`, `departAt?`, `useCache?` | `TravelRouteDayResult` | Travel v2 Map tab route line + ETA totals | `travel_route_compute_day` |
-| `travel.exportGoogleMaps` | Export an ordered route/waypoint sequence to Google Maps targets with explicit graceful fallback | `tripId`, `target`, `waypointItemIds[]`, `dayDate?`, `mode?`, `exportName?` | `TravelGoogleExportResult` (union) | Travel v2 Map tab export panel | `travel_export_google_maps` |
-| `travel.getMapsProviderStatus` | Read Travel maps/routing provider configuration status (key presence only; no plaintext secrets) | — | `TravelMapsProviderStatus` | Settings → Integrations (Travel Google keys), Travel Map tab gating | `travel_get_maps_provider_status` |
-| `travel.getMapsJsConfig` | Read frontend-safe Google Maps JS loader config (Maps JS key + libraries) | — | `TravelMapsJsConfig` | Travel v2 embedded map loader | `travel_get_maps_js_config` |
 | `travel.providerStatus` | Read TREK provider runtime/auth/mirror/update readiness for the active vault | — | `TravelProviderStatus` (`sidecar.activeVersion`, `sidecar.runtimeBundlePath`, runtime/status warnings) | Travel provider gate/status card (Settings + Travel route shell) | `travel_provider_status` |
 | `travel.providerListCards` | List read-only TREK mirror trip cards available in the active vault | — | `TravelProviderMirrorCard[]` | Travel provider gallery/card index | `travel_provider_list_cards` |
 | `travel.providerLaunch` | Launch TREK provider for a selected trip card (embedded default, optional pop-out) | `tripId`, `mode?` (`embedded\|popout`) | `TravelProviderLaunchResult` (`sidecar` includes active runtime version/bundle context) | Travel provider card open action | `travel_provider_launch` |
 | `travel.providerSync` | Run TREK -> Cortex mirror sync for trip cards/notes and refresh index visibility | `tripId?`, `force?` | `TravelProviderSyncResult` | Travel provider manual sync/reconcile action | `travel_provider_sync` |
 | `travel.providerCheckUpdates` | Check upstream TREK releases, stage/download latest runtime candidate, and run compatibility gate checks before activation | — | `TravelProviderUpdateCheckResult` (`candidateVersion`, `compatible`, `compatibilityNotes[]`, candidate asset metadata) | Travel provider update panel (preflight check + gate visibility) | `travel_provider_check_updates` |
 | `travel.providerApplyUpdate` | Activate a validated TREK runtime candidate and rollback to prior active version on post-apply runtime health failure | `targetVersion` | `TravelProviderApplyUpdateResult` (`status`, `applied`, `rolledBack`, `previousVersion`) | Travel provider update panel (activate candidate + rollback feedback) | `travel_provider_apply_update` |
-| `travel.importPreview` | Preview AI-assisted Travel import candidates from URL/text/screenshot sources (no writes) | `tripId`, `sources[]` (`kind = url \| text \| image_base64` + source payload fields), `options?` | `TravelImportPreviewResult` (`candidates[]`, `warnings[]`, `stats`, `provider`, `previewGeneratedAt`) | Travel v2 Import tab (manual source preview) | `travel_import_preview` |
-| `travel.importCommit` | Persist selected/edited Travel import candidates from preview and index created pages | `tripId`, `approvedCandidates[]`, `commitMode?` | `TravelImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Travel v2 Import tab (manual source commit) | `travel_import_commit` |
-| `travel.gmailScanPreview` | User-triggered Gmail reservation scan for a trip/date range (preview only; no writes) | `tripId`, `startDate`, `endDate`, `maxMessages?`, `queryOverride?`, `includeAlreadyImported?` | `TravelGmailScanPreviewResult` (`candidates[]`, `warnings[]`, `scanStats`, `messages[]`, `previewGeneratedAt`) | Travel v2 Import tab (Gmail scan preview) | `travel_gmail_scan_preview` |
-| `travel.gmailImportCommit` | Persist selected Gmail-derived reservation candidates as structured Travel entities | `tripId`, `approvedCandidates[]` | `TravelImportCommitResult` (`results[]`, `created`, `skippedDuplicates`, `warnings[]`) | Travel v2 Import tab (Gmail candidate commit) | `travel_gmail_import_commit` |
-| `travel.aiSuggestIdeas` | Generate Travel planner inspiration ideas (preview-only; no writes) | `tripId`, `locationId?`, `dayDate?`, `prompt?`, `constraints?`, `maxSuggestions?` | `TravelAiSuggestIdeasResult` (`responseMode`, `suggestions[]`, `warnings[]`, `rationale?`, `contextSummary?`, `provider?`, `previewGeneratedAt`) | Travel v2 Planner tab (Inspire / Summarize actions) | `travel_ai_suggest_ideas` |
-| `travel.optimizeDayPlanPreview` | Generate a day itinerary optimization preview (reorder-first v1; preview-only; explicit apply via standard mutations) | `tripId`, `dayDate`, `itemIds?`, `strategy?`, `startTime?`, `endTime?`, `constraints?`, `includeRoutingMetrics?` | `TravelOptimizeDayPlanPreviewResult` (`responseMode`, `previewMode="reorder_first_v1"`, `basePlan`, `proposedPlan`, `changes[]` union, `applyGuard`, `warnings[]`, `constraintConflicts[]`, `rationale?`, `provider?`, `previewGeneratedAt`) | Travel v2 Planner tab (Optimize Day preview + explicit apply-all) | `travel_optimize_day_plan_preview` |
-| `travel.pushItemsToCalendar` | One-way Travel -> Calendar projection for itinerary items (idempotent batch push of local `calendar_event` pages; no reverse sync) | `tripId`, `dayDate?`, `itemIds[]?`, `overwriteExisting?`, `syncExternal?` | `TravelCalendarPushResult` (`created`, `updated`, `skipped`, `errors`, `results[]`, `warnings[]`) | Travel v2 Calendar tab (day push + selected-item push + re-push status) | `travel_push_items_to_calendar` |
-| `travel.createCard` | **Legacy compatibility**: add unstructured travel card markdown note | `tripId`, `kind`, `title`, `props?` | `Note` | Legacy Travel cards UI / compatibility path | `travel_create_card` (`Travel/Trips/<slug>/<card-title-slug>.md` with collision suffixing) |
-| `travel.getItinerary` | **Legacy compatibility**: get trip + child `travel_card`s | `tripId` | `{ trip, cards[] }` | Legacy Travel itinerary detail | `travel_get_itinerary` |
-
-> Travel v2 Stage 1-2 (structured locations/items/expenses) is additive. Legacy `travel_card` commands remain available during migration and are surfaced in the v2 workspace as a dual-read compatibility path.
->
-> Stage 1-2 integrity patch notes:
-> - `travel.moveItem` remains a metadata move (no filesystem relocation yet) but now supports `clearLocation?` to disambiguate clearing vs preserving `location_id`.
-> - `travel.createItem` for location-scoped items writes new files under a stable per-location folder subdir (hybrid path strategy) to avoid shared `Locations/Items/`.
-> - `travel.legacyMigrateCards` skips already migrated legacy cards by `legacy_card_id`.
-> - `travel.createItem` / `travel.updateItem` validate item props at the API boundary (date/time formats, `start_time < end_time`, positive `order_index`, non-empty `item_type`, plus optional flight/lodging date/time field format checks when present).
-> - `travel.createExpense` / `travel.updateExpense` validate expense props at the API boundary (finite non-negative `amount`, optional `date`/`currency` format checks, and same-trip ownership for linked `location_id` / `item_id`).
->
-> Stage 3 maps/routing/export notes:
-> - `travel.routeComputeDay` preserves the caller-provided waypoint order; Stage 3 does not perform auto-optimization/reordering.
-> - `travel.routeComputeDay` transit mode computes adjacent legs and returns a stitched day-route response (`stitchedTransit = true`).
-> - When `travel.routeComputeDay` transit mode receives `departAt`, stitched legs are computed sequentially using chained estimated departure times (previous leg departure + previous leg duration).
-> - `travel.exportGoogleMaps` must return an explicit unsupported/fallback union response for unsupported `target = "saved_list_experimental"` requests.
-> - `travel.getMapsProviderStatus` returns key-presence/configuration booleans only; plaintext secret values are not returned.
-> - `travel.resolveMapWaypoints` may return `status = "ambiguous"` when geocoding returns multiple candidates; Stage 3 does not persist coordinates for ambiguous matches.
-> - Route and geocoding metadata are additive page props on `trip_location` / `trip_item` (`map_lat`, `map_lng`, `map_query`, `map_formatted_address`, `google_place_id`, `map_resolved_at`, `map_resolution_source`, `route_exclude`).
->
-> Stage 4 import notes (ADR-0028 / ADR-0029):
-> - `travel.importPreview` and `travel.gmailScanPreview` are preview-only and must not persist pages or enqueue indexing jobs.
-> - `travel.importCommit` and `travel.gmailImportCommit` must preserve Travel v2 indexing parity (same search/RAG visibility semantics as other travel writes).
-> - Gmail scan is user-triggered only (no background polling/watchers in Stage 4B).
-> - Stage 4B stores/indexes structured extracted reservation data and sanitized source metadata; raw Gmail message bodies/attachments are not stored or indexed by default.
-> - Gmail-derived imports should persist provenance metadata and trip-scoped dedupe keys where available.
->
-> Stage 5 planner AI notes (ADR-0030):
-> - `travel.aiSuggestIdeas` and `travel.optimizeDayPlanPreview` are preview-only and must not persist pages or enqueue indexing jobs.
-> - Stage 5 introduces no `travel.aiApply*` mutation command; accepted suggestions are applied in the frontend via standard Travel mutation commands (v1 default: `travel.reorderItems` for reorder previews).
-> - `travel.optimizeDayPlanPreview` v1 is `reorder_first_v1`; applyable change rows are `changeType="reorder"` while informational-only rows use `changeType="note"` (`retime_deferred`, `constraint`, `missing_data`, `provider_degraded`).
-> - `travel.optimizeDayPlanPreview` returns `applyGuard` (`sourceOrderedItemIds`, `sourceItems[]`, `snapshotHash`) and frontend must block apply when the preview is stale.
-> - `travel.optimizeDayPlanPreview` may return `responseMode="degraded_deterministic"` when deterministic preview generation succeeds but AI rationale/enrichment fails; manual planning/routing remains available.
->
-> Stage 6 calendar push notes (ADR-0031):
-> - `travel.pushItemsToCalendar` is a one-way projection from Travel itinerary items to local `calendar_event` pages. Calendar edits do not write back to Travel in v1.
-> - Selection validation: callers must provide `dayDate` or a non-empty `itemIds[]`. If both are provided, backend applies the intersection.
-> - Re-push behavior is idempotent:
->   - `overwriteExisting=false` skips already-linked items
->   - `overwriteExisting=true` updates only Travel-managed event fields and preserves user-owned fields (`description`, `location`, `linked_note_id`, `color`, body, and existing Google linkage props)
-> - Travel item linkage is stored on `trip_item.props.calendar_event_id`.
-> - Travel-generated calendar event metadata is additive on `calendar_event` pages: `travel_generated`, `travel_trip_id`, `travel_item_id`, `travel_item_type`, `travel_day_date`.
-> - Travel-generated events are Cortex-managed local events (`source="cortex"`, `read_only=false`); `syncExternal` is optional and controls outbound mirror eligibility.
-> - Request examples:
->   - day push: `{ tripId, dayDate }`
->   - selected push: `{ tripId, itemIds: ["item-1","item-2"] }`
->   - re-push overwrite: `{ tripId, dayDate, overwriteExisting: true }`
->
-> Provider runtime notes (ADR-0048):
-> - Sidecar runtime assumes bundled Node + bundled TREK runtime in the desktop package (no host Docker/Node prerequisite).
-> - `travel.providerListCards` exposes read-only mirror cards from `Travel/.trek/mirror/...`; mirror markdown/pages remain the Cortex retrieval/RAG surface.
-> - Safe update flow is explicit: `travel.providerCheckUpdates` discovers candidates and `travel.providerApplyUpdate` switches only after integrity/health/schema/auth/sync checks pass; failed activation rolls back to last-known-good runtime.
+> Native Travel IPC commands were removed from this matrix and are superseded by the provider model. The Travel contract is now provider-only.
 
 ### Finance
 
