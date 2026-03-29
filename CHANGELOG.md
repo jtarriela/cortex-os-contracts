@@ -59,6 +59,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `travel.providerApplyUpdate`
 
 ### Changed
+- Travel provider updater contract semantics now include candidate staging + gate outcomes:
+  - `travel.providerCheckUpdates` now reports `candidateVersion`, compatibility decision/notes, and candidate asset metadata.
+  - `travel.providerApplyUpdate` now reports activation lifecycle state (`status`, `applied`, `rolledBack`, `previousVersion`).
 - Dependency enum docs now standardize on full PM dependency kinds (`FS|SS|FF|SF`) where task/planner dependency contracts are documented.
 - Planner docs now define a migration boundary: planner reads/writes are project-scoped commands (`project_plan_*`) rather than frontend filtering of `vault_list_summary`.
 - Phase 7 contracts docs now freeze the ADR-0043 Phase 6 view transports as the canonical hot-surface path:
