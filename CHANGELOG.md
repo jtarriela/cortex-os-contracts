@@ -59,6 +59,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `travel.providerApplyUpdate`
 
 ### Changed
+- Travel provider packaged-runtime governance is now documented as packaged-first and pin-driven:
+  - packaged builds ship a Cortex-prepared TREK runtime bundle from the checked-in pin manifest instead of treating upstream GitHub "latest" as the end-user activation source
+  - explicit upstream probing/apply behavior is retained only for dev override / maintainer validation flows
+- Travel provider additive payload docs now expose bundled-runtime provenance and policy fields:
+  - `travel.providerStatus` includes `runtimeMode`, `runtimeSourceType`, `bundledRuntimeVersion`, `bundledRuntimeBuildManifestPath`, and `updatePolicy`
+  - `travel.providerCheckUpdates` distinguishes packaged pinned candidates from dev upstream override candidates via additive provenance fields such as `updateSourceType`, `candidateSourceType`, `candidatePinned`, and build-manifest context
+  - `travel.providerApplyUpdate` now documents `targetVersion`, `activeVersion`, warnings, and additive active-version provenance alongside rollback lifecycle fields
 - Travel provider updater contract semantics now include candidate staging + gate outcomes:
   - `travel.providerCheckUpdates` now reports `candidateVersion`, compatibility decision/notes, and candidate asset metadata.
   - `travel.providerApplyUpdate` now reports activation lifecycle state (`status`, `applied`, `rolledBack`, `previousVersion`).
