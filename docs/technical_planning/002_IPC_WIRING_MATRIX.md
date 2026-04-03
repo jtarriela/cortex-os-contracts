@@ -196,13 +196,15 @@ Batch mutate request shape:
 | `finance.getSummary` | Get month rollup | `month?` | `FinanceSummary` | Finance manual analysis snapshot + drill-down metrics | `finance_get_summary` |
 | `finance.listTransactions` | List transactions | `month?` | `Transaction[]` | Finance Transactions tab | `FinanceService::list_transactions` |
 | `finance.importCsv` | Import CSV file | `filename`, `content` **or** `account_id`, `rows[]` | `Transaction[]` | Finance Import tab | `finance_import_csv` |
-| `finance.ynabStatus` | Read local YNAB connection/sync status | — | `FinanceYnabStatus` | Settings Integrations (YNAB) + Finance YNAB gate/status card | `finance_ynab_status` |
+| `finance.ynabStatus` | Read local YNAB connection/sync status | — | `FinanceYnabStatus` (`connectionIssue?` additive reconnect guidance when a saved token exists but cannot be read locally) | Settings Integrations (YNAB) + Finance YNAB gate/status card | `finance_ynab_status` |
 | `finance.ynabConnectPat` | Save + validate YNAB Personal Access Token and cache budgets | `token`, `selectedBudgetId?` | `{ status: FinanceYnabStatus }` | Settings Integrations YNAB connect form | `finance_ynab_connect_pat` |
 | `finance.ynabDisconnect` | Remove YNAB token and reset selected budget state (local synced data preserved) | — | `boolean` | Settings Integrations YNAB disconnect action | `finance_ynab_disconnect` |
 | `finance.ynabSync` | Full/delta YNAB view-only sync to local `ynab_*` pages + CSV mirror + analytics refresh | `budgetId?`, `mode?` (`auto\\|full\\|delta`), `writeCsv?`, `reanalyze?` | `FinanceYnabSyncResult` | Finance YNAB sync controls | `finance_ynab_sync` |
 | `finance.ynabGetTrackerConfig` | Read tracked-category analyzer config for selected or specified budget | `budgetId?` | `FinanceTrackedCategoryConfig` | Finance tracked categories manager | `finance_ynab_get_tracker_config` |
 | `finance.ynabSaveTrackerConfig` | Persist tracked-category analyzer config | `config { budgetId, categories[] }` | `FinanceTrackedCategoryConfig` | Finance tracked categories manager | `finance_ynab_save_tracker_config` |
-| `finance.ynabGetAnalytics` | Compute/read local YNAB whole-budget + tracked-category metrics | `monthKey?`, `budgetId?` | `FinanceYnabAnalytics` | Finance dashboard charts + category metrics | `finance_ynab_get_analytics` |
+| `finance.ynabGetAnalytics` | Compute/read local YNAB whole-budget + tracked-category metrics | `monthKey?`, `budgetId?` | `FinanceYnabAnalytics` (additive `categoryBreakdown[]` overview rows: `categoryId?`, `categoryName`, `categoryGroupName?`, `budgetedMilliunits`, `carriedFromLastMonthMilliunits`, `availableBeforeActivityMilliunits`, `spentMilliunits`, `balanceMilliunits`) | Finance dashboard charts + category metrics | `finance_ynab_get_analytics` |
+
+> Finance YNAB dashboard restore note: `categoryBreakdown[]` is an additive whole-budget overview payload for the monthly spending donut/table visualization. Existing analytics consumers remain compatible; the established fields (`wholeBudgetCurrentMonth`, `wholeBudgetSeries`, tracked-category metrics, `topSpendingCategories`, `overspentCategories`) remain part of `FinanceYnabAnalytics`.
 
 ### Journal
 

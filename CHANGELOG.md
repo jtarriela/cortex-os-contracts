@@ -59,6 +59,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `travel.providerApplyUpdate`
 
 ### Changed
+- Finance YNAB contract docs now document additive dashboard-restore response fields without breaking existing consumers:
+  - `finance.ynabStatus` includes optional `connectionIssue`
+  - `finance.ynabGetAnalytics` includes additive `categoryBreakdown[]` overview rows with category identity, budgeted, carryover, starting-available, spent, and balance milliunit fields
 - Travel provider packaged-runtime governance is now documented as packaged-first and pin-driven:
   - packaged builds ship a Cortex-prepared TREK runtime bundle from the checked-in pin manifest instead of treating upstream GitHub "latest" as the end-user activation source
   - explicit upstream probing/apply behavior is retained only for dev override / maintainer validation flows
