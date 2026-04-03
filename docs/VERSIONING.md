@@ -154,6 +154,7 @@ Frontend and backend must treat unknown response/event fields as forward-compati
 The following contract updates are classified as **MINOR** changes (additive fields/commands):
 
 - new command: `integrations.convertGoogleEventToTask` (`{ pageId } -> { taskId, calendarEventId, linkedNoteId?, alreadyConverted }`)
+- new command: `integrations.bulkConvertGoogleEventsToTasks` (`{ calendarIds, startDate, endDate } -> { convertedCount, alreadyConvertedCount, skippedCount, taskIds }`)
 - `IntegrationSettings` additive field: `mirrorMigrationV2Done`
 
 The following are **semantic behavior changes** and must be called out in docs/changelog even pre-1.0:

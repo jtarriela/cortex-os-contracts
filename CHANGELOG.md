@@ -46,6 +46,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `contracts/scripts/generate-phase06-bindings.mjs`
 - Google explicit-convert contract surface:
   - `integrations.convertGoogleEventToTask` (`{ pageId } -> { taskId, calendarEventId, linkedNoteId?, alreadyConverted }`)
+  - `integrations.bulkConvertGoogleEventsToTasks` (`{ calendarIds, startDate, endDate } -> { convertedCount, alreadyConvertedCount, skippedCount, taskIds }`)
 - Integration settings additive field:
   - `mirrorMigrationV2Done`
 - Restored Journal analytics contract surface:
